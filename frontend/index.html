@@ -5,14 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bike Loop Generator</title>
     <link rel="stylesheet" href="style.css">
-</head><body>
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
     <div id="controls">
         <h1>Bike Loop Generator</h1>
         
         <label for="address">Starting Address:</label>
         <input type="text" id="address" placeholder="Type an address or leave blank for current location">
         
-        <!-- NEW: Mandatory Waypoint Input -->
         <label for="mandatory_waypoint">Include this point (optional):</label>
         <input type="text" id="mandatory_waypoint" placeholder="e.g., 'Eiffel Tower, Paris'">
 
@@ -22,11 +23,14 @@
         <button id="generateBtn">Generate Loop</button>
         
         <div id="status">Enter a starting point and distance, then click Generate.</div>
+
+        <!-- NEW: Add this link, it will be hidden by default -->
+        <a id="gmaps-link" href="#" target="_blank" style="display: none;">Open in Google Maps</a>
     </div>
     <div id="map"></div>
 
-<script src="script.js" defer></script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&callback=initializeApp" async></script>
-    
+    <!-- The order of these scripts is important! -->
+    <script src="script.js" defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&libraries=geometry,places&callback=initializeApp" async></script>
 </body>
 </html>
