@@ -1,15 +1,11 @@
-// frontend/script.js
-
 let map;
 let currentPolyline = null;
 let geocoder;
 
 // This async function will now be CALLED BY GOOGLE when its script is ready.
 async function initializeApp() {
-    // These libraries are now guaranteed to be available because Google called this function.
     const { Map } = await google.maps.importLibrary("maps");
     const { Geocoder } = await google.maps.importLibrary("geocoding");
-    // We don't need to await this one if we don't use its return value directly.
     google.maps.importLibrary("geometry");
 
     const initialPosition = { lat: 48.8566, lng: 2.3522 }; // Paris
@@ -24,19 +20,21 @@ async function initializeApp() {
     document.getElementById('generateBtn').addEventListener('click', generateLoop);
 }
 
-
-// --- All other functions remain exactly the same ---
-
 function generateLoop() {
-    // ... (no changes here)
     const statusDiv = document.getElementById('status');
     const generateBtn = document.getElementById('generateBtn');
     const address = document.getElementById('address').value;
+    const gmapsLink = document.getElementById('gmaps-link');
 
     if (currentPolyline) {
         currentPolyline.setMap(null);
     }
     
+    // Hide the Google Maps link at the start of a new generation
+    if (gmapsLink) {
+        gmapsLink.style.display = 'none';
+    }
+
     generateBtn.disabled = true;
 
     if (address.trim() !== "") {
@@ -49,7 +47,6 @@ function generateLoop() {
 }
 
 function geocodeAddress(address) {
-    // ... (no changes here)
     geocoder.geocode({ 'address': address }, (results, status) => {
         if (status === 'OK') {
             const startLocation = {
@@ -67,7 +64,6 @@ function geocodeAddress(address) {
 }
 
 function useCurrentLocation() {
-    // ... (no changes here)
     const statusDiv = document.getElementById('status');
     const generateBtn = document.getElementById('generateBtn');
 
@@ -91,14 +87,13 @@ function useCurrentLocation() {
 }
 
 async function callBackendForLoop(startLocation) {
-    // ... (no changes here)
     const targetDistance = document.getElementById('distance').value;
     const mandatoryWaypoint = document.getElementById('mandatory_waypoint').value;
     const statusDiv = document.getElementById('status');
     const generateBtn = document.getElementById('generateBtn');
 
     try {
-        const response = await fetch('https://bike-loop-backend.onrender.com/api/generate-loop', {
+        const response = await fetch('https://bike-loop-backend.onrender.com/api/generate-loop', { // Make sure this is your Render URL
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -118,6 +113,14 @@ async function callBackendForLoop(startLocation) {
         const distanceInKm = (data.totalDistance / 1000).toFixed(2);
         const durationInMinutes = Math.round(data.totalDuration / 60);
         statusDiv.innerHTML = `Generated a <b>${distanceInKm} km</b> loop. <br> Estimated time: <b>${durationInMinutes} minutes</b>.`;
+        
+        // Activate the Google Maps link
+        const gmapsLink = document.getElementById('gmaps-link');
+        if (data.googleMapsUrl && gmapsLink) {
+            gmapsLink.href = data.googleMapsUrl;
+            gmapsLink.style.display = 'block';
+        }
+
     } catch (error) {
         console.error('Error:', error);
         statusDiv.textContent = `Error: ${error.message}`;
@@ -127,7 +130,6 @@ async function callBackendForLoop(startLocation) {
 }
 
 function drawRoute(encodedPolyline) {
-    // ... (no changes here)
     const path = google.maps.geometry.encoding.decodePath(encodedPolyline);
     const routePolyline = new google.maps.Polyline({
         path: path,
@@ -142,5 +144,3 @@ function drawRoute(encodedPolyline) {
     path.forEach(point => bounds.extend(point));
     map.fitBounds(bounds);
 }
-
-// REMOVED: We no longer call initializeApp() ourselves. Google does it for us.
