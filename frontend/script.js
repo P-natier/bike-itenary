@@ -98,7 +98,7 @@ async function callBackendForLoop(startLocation) {
     const generateBtn = document.getElementById('generateBtn');
 
     try {
-        const response = await fetch('http://localhost:3000/api/generate-loop', {
+        const response = await fetch('https://bike-loop-backend.onrender.com/api/generate-loop', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
