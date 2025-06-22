@@ -11,9 +11,9 @@ app.use(express.json());
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const GOOGLE_MAPS_API_BASE = 'https://maps.googleapis.com/maps/api';
 
-// --- Helper functions (calculateDestinationPoint and new getBearing) ---
+// --- Helper functions ---
 function calculateDestinationPoint(lat, lng, bearing, distance) {
-    const R = 6371;
+    const R = 6371; // Earth's radius in km
     const d = distance;
     const lat1 = (lat * Math.PI) / 180;
     const lon1 = (lng * Math.PI) / 180;
@@ -45,24 +45,34 @@ app.post('/api/generate-loop', async (req, res) => {
     }
 
     try {
-        let route;
-        // DECISION: Check if a mandatory waypoint was provided
+        let result; // Will hold { route, waypointsUsed }
         if (mandatoryWaypoint) {
             console.log(`Generating loop with mandatory waypoint: "${mandatoryWaypoint}"`);
-            route = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint);
+            result = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint);
         } else {
             console.log("Generating a random loop.");
-            route = await generateRandomLoop(startLocation, targetDistance);
+            result = await generateRandomLoop(startLocation, targetDistance);
         }
 
-        if (!route) {
+        if (!result || !result.route) {
             throw new Error("Could not generate a valid route.");
         }
+        
+        // --- NEW: Construct the Google Maps URL here ---
+        let googleMapsUrl = 'https://www.google.com/maps/dir/';
+        const origin = `${startLocation.lat},${startLocation.lng}`;
+        const destination = origin; // It's a loop
+        const waypointsString = result.waypointsUsed.map(wp => `${wp.lat},${wp.lng}`).join('/');
+        
+        // Final URL format: /origin/waypoint1/waypoint2/destination
+        googleMapsUrl += `${origin}/${waypointsString}/${destination}?dirflg=b`;
+        // dirflg=b sets the travel mode to bicycling
 
         res.json({
-            polyline: route.overview_polyline.points,
-            totalDistance: route.legs.reduce((total, leg) => total + leg.distance.value, 0),
-            totalDuration: route.legs.reduce((total, leg) => total + leg.duration.value, 0),
+            polyline: result.route.overview_polyline.points,
+            totalDistance: result.route.legs.reduce((total, leg) => total + leg.distance.value, 0),
+            totalDuration: result.route.legs.reduce((total, leg) => total + leg.duration.value, 0),
+            googleMapsUrl: googleMapsUrl // NEW: Add the URL to the response
         });
 
     } catch (error) {
@@ -71,67 +81,58 @@ app.post('/api/generate-loop', async (req, res) => {
     }
 });
 
-
-// --- NEW: Function to handle loops with a mandatory stop ---
+// --- Function to handle loops with a mandatory stop ---
 async function generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypointAddress) {
-    // 1. Geocode the mandatory waypoint address to get its coordinates
     const geoResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/geocode/json`, {
         params: { address: mandatoryWaypointAddress, key: API_KEY }
     });
     if (!geoResponse.data.results || geoResponse.data.results.length === 0) {
         throw new Error(`Could not find location for: "${mandatoryWaypointAddress}"`);
     }
-    const mandatoryPoint = geoResponse.data.results[0].geometry.location; // {lat, lng}
+    const mandatoryPoint = geoResponse.data.results[0].geometry.location;
 
-    // 2. Calculate the direct out-and-back route distance
     const directRouteResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, {
         params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: `${mandatoryPoint.lat},${mandatoryPoint.lng}`, mode: 'bicycling', key: API_KEY }
     });
     const directRoute = directRouteResponse.data.routes[0];
     const directDistance = directRoute.legs.reduce((sum, leg) => sum + leg.distance.value, 0);
 
-    // 3. Calculate the distance we need to add
     const targetDistanceMeters = targetDistance * 1000;
     const distanceDeficit = targetDistanceMeters - directDistance;
 
-    // If the direct route is already long enough, just return it
-    if (distanceDeficit <= 0) {
+    if (distanceDeficit <= 500) { // If it's close enough or over, just return the direct route
         console.log("Direct route is long enough, returning as is.");
-        return directRoute;
+        return { route: directRoute, waypointsUsed: [mandatoryPoint] };
     }
     
-    console.log(`Direct route is ${directDistance / 1000}km. Need to add ${distanceDeficit / 1000}km.`);
+    console.log(`Direct route is ${(directDistance / 1000).toFixed(2)}km. Need to add ${(distanceDeficit / 1000).toFixed(2)}km.`);
 
-    // 4. Create detours to add the missing distance
-    // We'll add half the deficit to the outbound leg and half to the return leg
-    const detourLegDistance = (distanceDeficit / 2) / 2; // Split deficit in 2 legs, and use a midpoint for the detour
-
-    // Find a detour point for the outbound leg (Start -> Mandatory)
+    const detourLegDistance = (distanceDeficit / 2) / 2;
     const bearingOut = getBearing(startLocation, mandatoryPoint);
-    const detourBearingOut = (bearingOut + 90 * (Math.random() > 0.5 ? 1 : -1) + 360) % 360; // 90 degrees left or right
+    const detourBearingOut = (bearingOut + 90 * (Math.random() > 0.5 ? 1 : -1) + 360) % 360;
     const midpointOut = { lat: (startLocation.lat + mandatoryPoint.lat) / 2, lng: (startLocation.lng + mandatoryPoint.lng) / 2 };
     const theoreticalDetour1 = calculateDestinationPoint(midpointOut.lat, midpointOut.lng, detourBearingOut, detourLegDistance / 1000);
     
-    // Find a detour point for the return leg (Mandatory -> Start)
     const bearingIn = getBearing(mandatoryPoint, startLocation);
     const detourBearingIn = (bearingIn + 90 * (Math.random() > 0.5 ? 1 : -1) + 360) % 360;
     const midpointIn = { lat: (mandatoryPoint.lat + startLocation.lat) / 2, lng: (mandatoryPoint.lng + startLocation.lng) / 2 };
     const theoreticalDetour2 = calculateDestinationPoint(midpointIn.lat, midpointIn.lng, detourBearingIn, detourLegDistance / 1000);
     
-    // 5. Build the final route with all waypoints in order
-    const waypointsString = [
+    const finalWaypointsForRequest = [
         `${theoreticalDetour1.lat},${theoreticalDetour1.lng}`,
         `${mandatoryPoint.lat},${mandatoryPoint.lng}`,
         `${theoreticalDetour2.lat},${theoreticalDetour2.lng}`
-    ].join('|');
+    ];
     
     const finalRouteResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, {
-        params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: waypointsString, mode: 'bicycling', key: API_KEY }
+        params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: finalWaypointsForRequest.join('|'), mode: 'bicycling', key: API_KEY }
     });
 
-    return finalRouteResponse.data.routes[0];
+    return {
+        route: finalRouteResponse.data.routes[0],
+        waypointsUsed: [theoreticalDetour1, mandatoryPoint, theoreticalDetour2]
+    };
 }
-
 
 // --- This is our previous robust function, now renamed ---
 async function generateRandomLoop(startLocation, targetDistance) {
@@ -141,6 +142,7 @@ async function generateRandomLoop(startLocation, targetDistance) {
     const targetDistanceMeters = targetDistance * 1000;
     let bestRoute = null;
     let minError = Infinity;
+    let waypointsForBestRoute = [];
 
     for (let attempt = 0; attempt < MAIN_ATTEMPTS; attempt++) {
         const randomStartAngle = Math.random() * 360;
@@ -170,7 +172,11 @@ async function generateRandomLoop(startLocation, targetDistance) {
                 if (route) {
                     const actualDistance = route.legs.reduce((total, leg) => total + leg.distance.value, 0);
                     const error = Math.abs(actualDistance - targetDistanceMeters);
-                    if (error < minError) { minError = error; bestRoute = route; }
+                    if (error < minError) {
+                        minError = error;
+                        bestRoute = route;
+                        waypointsForBestRoute = waypoints;
+                    }
                     const errorRatio = targetDistanceMeters / actualDistance;
                     legDistance *= (1 - ADJUSTMENT_FACTOR) + (errorRatio * ADJUSTMENT_FACTOR);
                 }
@@ -178,9 +184,11 @@ async function generateRandomLoop(startLocation, targetDistance) {
         }
         if (minError < 500 && bestRoute) { break; }
     }
-    return bestRoute;
+    return { 
+        route: bestRoute,
+        waypointsUsed: waypointsForBestRoute
+    };
 }
-
 
 const PORT = 3000;
 app.listen(PORT, () => {
