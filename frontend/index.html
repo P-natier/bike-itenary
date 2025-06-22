@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bike Loop Generator</title>
+    <link rel="stylesheet" href="style.css">
+</head><body>
+    <div id="controls">
+        <h1>Bike Loop Generator</h1>
+        
+        <label for="address">Starting Address:</label>
+        <input type="text" id="address" placeholder="Type an address or leave blank for current location">
+        
+        <!-- NEW: Mandatory Waypoint Input -->
+        <label for="mandatory_waypoint">Include this point (optional):</label>
+        <input type="text" id="mandatory_waypoint" placeholder="e.g., 'Eiffel Tower, Paris'">
+
+        <label for="distance">Loop Distance (km):</label>
+        <input type="number" id="distance" value="20" min="1">
+        
+        <button id="generateBtn">Generate Loop</button>
+        
+        <div id="status">Enter a starting point and distance, then click Generate.</div>
+    </div>
+    <div id="map"></div>
+
+<!-- Change defer to async AND add the callback -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&libraries=geometry,places&callback=initializeApp" async></script>
+
+<!-- Keep defer on our own script -->
+<script src="script.js" defer></script>
+</body>
+</html>
