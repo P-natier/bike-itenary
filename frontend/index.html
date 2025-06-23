@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bike Loop Generator</title>
+    <!-- NEW: Add Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 </head>
@@ -20,13 +22,14 @@
         <label for="distance">Loop Distance (km):</label>
         <input type="number" id="distance" value="20" min="1">
         
-        <!-- NEW: Travel Mode Selector -->
         <div id="mode-selector">
             <input type="radio" id="mode-bike" name="travel-mode" value="BICYCLING" checked>
-            <label for="mode-bike">Bike</label>
+            <!-- UPDATED: Add icon to the label -->
+            <label for="mode-bike"><i class="fa-solid fa-bicycle"></i> Bike</label>
             
             <input type="radio" id="mode-walk" name="travel-mode" value="WALKING">
-            <label for="mode-walk">By Foot</label>
+            <!-- UPDATED: Add icon to the label -->
+            <label for="mode-walk"><i class="fa-solid fa-person-walking"></i> By Foot</label>
         </div>
         
         <button id="generateBtn">Generate Loop</button>
@@ -34,14 +37,14 @@
         <div id="status">Enter a starting point and distance, then click Generate.</div>
         <a id="gmaps-link" href="#" target="_blank" style="display: none;">Open in Google Maps</a>
     </div>
+
+    <!-- This div will be used for our map legend, but we will create it in JS -->
     <div id="map"></div>
 
     <script>
       function initializeApp() {}
     </script>
     <script src="script.js" defer></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&libraries=geometry,places&callback=initializeApp" async></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY_HERE&libraries=geometry,places&callback=initializeApp" async></script>
 </body>
 </html>
-        
-        
