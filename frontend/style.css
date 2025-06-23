@@ -53,15 +53,22 @@ body, html {
   border: none;
   color: white;
   font-size: 1.2rem;
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 0.8rem;
   border-radius: 6px;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #toggle-button i {
-  pointer-events: none;
+  margin: 0;
+  font-size: 1.2rem;
 }
+
 
 /* Inputs & buttons */
 input[type="text"],
