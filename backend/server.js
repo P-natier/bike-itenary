@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const cors =require('cors');
+const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
 
@@ -11,7 +11,7 @@ app.use(express.json());
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const GOOGLE_MAPS_API_BASE = 'https://maps.googleapis.com/maps/api';
 
-// --- Helper functions (no changes) ---
+// --- Helper functions ---
 function calculateDestinationPoint(lat, lng, bearing, distance) {
     const R = 6371;
     const d = distance;
@@ -81,17 +81,11 @@ app.post('/api/generate-loop', async (req, res) => {
 
 // --- Function to handle loops with a mandatory stop ---
 async function generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypointAddress, travelMode) {
-    const geoResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/geocode/json`, {
-        params: { address: mandatoryWaypointAddress, key: API_KEY }
-    });
-    if (!geoResponse.data.results || geoResponse.data.results.length === 0) {
-        throw new Error(`Could not find location for: "${mandatoryWaypointAddress}"`);
-    }
+    const geoResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/geocode/json`, { params: { address: mandatoryWaypointAddress, key: API_KEY } });
+    if (!geoResponse.data.results || geoResponse.data.results.length === 0) { throw new Error(`Could not find location for: "${mandatoryWaypointAddress}"`); }
     const mandatoryPoint = geoResponse.data.results[0].geometry.location;
 
-    const directRouteResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, {
-        params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: `${mandatoryPoint.lat},${mandatoryPoint.lng}`, mode: travelMode, key: API_KEY }
-    });
+    const directRouteResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, { params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: `${mandatoryPoint.lat},${mandatoryPoint.lng}`, mode: travelMode, key: API_KEY } });
     const directRoute = directRouteResponse.data.routes[0];
     const directDistance = directRoute.legs.reduce((sum, leg) => sum + leg.distance.value, 0);
 
@@ -99,12 +93,9 @@ async function generateLoopWithWaypoint(startLocation, targetDistance, mandatory
     const distanceDeficit = targetDistanceMeters - directDistance;
 
     if (distanceDeficit <= 500) {
-        console.log("Direct route is long enough, returning as is.");
         return { route: directRoute, waypointsUsed: [mandatoryPoint] };
     }
     
-    console.log(`Direct route is ${(directDistance / 1000).toFixed(2)}km. Need to add ${(distanceDeficit / 1000).toFixed(2)}km.`);
-
     const detourLegDistance = (distanceDeficit / 2) / 2;
     const bearingOut = getBearing(startLocation, mandatoryPoint);
     const detourBearingOut = (bearingOut + 90 * (Math.random() > 0.5 ? 1 : -1) + 360) % 360;
@@ -116,20 +107,11 @@ async function generateLoopWithWaypoint(startLocation, targetDistance, mandatory
     const midpointIn = { lat: (mandatoryPoint.lat + startLocation.lat) / 2, lng: (mandatoryPoint.lng + startLocation.lng) / 2 };
     const theoreticalDetour2 = calculateDestinationPoint(midpointIn.lat, midpointIn.lng, detourBearingIn, detourLegDistance / 1000);
     
-    const finalWaypointsForRequest = [
-        `${theoreticalDetour1.lat},${theoreticalDetour1.lng}`,
-        `${mandatoryPoint.lat},${mandatoryPoint.lng}`,
-        `${theoreticalDetour2.lat},${theoreticalDetour2.lng}`
-    ];
+    const finalWaypointsForRequest = [`${theoreticalDetour1.lat},${theoreticalDetour1.lng}`, `${mandatoryPoint.lat},${mandatoryPoint.lng}`, `${theoreticalDetour2.lat},${theoreticalDetour2.lng}`];
     
-    const finalRouteResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, {
-        params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: finalWaypointsForRequest.join('|'), mode: travelMode, key: API_KEY }
-    });
+    const finalRouteResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, { params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: finalWaypointsForRequest.join('|'), mode: travelMode, key: API_KEY } });
 
-    return {
-        route: finalRouteResponse.data.routes[0],
-        waypointsUsed: [theoreticalDetour1, mandatoryPoint, theoreticalDetour2]
-    };
+    return { route: finalRouteResponse.data.routes[0], waypointsUsed: [theoreticalDetour1, mandatoryPoint, theoreticalDetour2] };
 }
 
 // --- Function for random loops ---
@@ -165,13 +147,12 @@ async function generateRandomLoop(startLocation, targetDistance, travelMode) {
             if (!canCreateWaypoints) { break; }
             try {
                 const waypointsString = waypoints.map(wp => `${wp.lat},${wp.lng}`).join('|');
-                // THE FIX IS HERE: We added 'mode: travelMode' to this API call.
                 const directionsResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, {
                     params: {
                         origin: `${startLocation.lat},${startLocation.lng}`,
                         destination: `${startLocation.lat},${startLocation.lng}`,
                         waypoints: waypointsString,
-                        mode: travelMode, // <-- THIS LINE WAS MISSING
+                        mode: travelMode, // This was the critical fix
                         key: API_KEY
                     }
                 });
