@@ -2,15 +2,11 @@ let map;
 let currentPolyline = null;
 let geocoder;
 let mapLegend;
-// The startMarker will now be an AdvancedMarkerElement
 let startMarker = null;
 
-// This function is called by the Google Maps script. We redefine the empty one from the HTML.
 initializeApp = async () => {
-    // Import the base libraries
     const { Map } = await google.maps.importLibrary("maps");
     const { Geocoder } = await google.maps.importLibrary("geocoding");
-    // Import the new 'marker' library
     const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
     google.maps.importLibrary("geometry");
 
@@ -22,8 +18,7 @@ initializeApp = async () => {
         fullscreenControl: false,
         streetViewControl: false,
         zoomControl: false,
-        // A mapId is required for Advanced Markers
-        mapId: 'BIKE_LOOP_GENERATOR_MAP' 
+        mapId: 'BIKE_LOOP_GENERATOR_MAP'
     });
 
     mapLegend = document.createElement('div');
@@ -32,6 +27,13 @@ initializeApp = async () => {
 
     geocoder = new Geocoder();
     document.getElementById('generateBtn').addEventListener('click', generateLoop);
+
+    // Toggle sidebar
+    const toggleBtn = document.getElementById("toggle-button");
+    const controls = document.getElementById("controls");
+    toggleBtn.addEventListener("click", () => {
+        controls.classList.toggle("open");
+    });
 };
 
 function generateLoop() {
@@ -40,21 +42,12 @@ function generateLoop() {
     const address = document.getElementById('address').value;
     const gmapsLink = document.getElementById('gmaps-link');
 
-    // Clean up all UI elements from the previous run
-    if (currentPolyline) {
-        currentPolyline.setMap(null);
-    }
-    if (startMarker) {
-        // The new way to remove a marker is to set its map property to null
-        startMarker.map = null;
-        startMarker = null;
-    }
-    if (mapLegend) {
-        mapLegend.style.display = 'none';
-    }
-    if (gmapsLink) {
-        gmapsLink.style.display = 'none';
-    }
+    if (currentPolyline) currentPolyline.setMap(null);
+    if (startMarker) startMarker.map = null;
+    startMarker = null;
+
+    mapLegend.style.display = 'none';
+    gmapsLink.style.display = 'none';
 
     generateBtn.disabled = true;
 
@@ -70,7 +63,10 @@ function generateLoop() {
 function geocodeAddress(address) {
     geocoder.geocode({ 'address': address }, (results, status) => {
         if (status === 'OK') {
-            const startLocation = { lat: results[0].geometry.location.lat(), lng: results[0].geometry.location.lng() };
+            const startLocation = {
+                lat: results[0].geometry.location.lat(),
+                lng: results[0].geometry.location.lng()
+            };
             map.setCenter(startLocation);
             document.getElementById('status').textContent = 'Generating your loop...';
             callBackendForLoop(startLocation);
@@ -87,9 +83,12 @@ function useCurrentLocation() {
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                const startLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
+                const startLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                };
                 map.setCenter(startLocation);
-                document.getElementById('status').textContent = 'Generating your loop...';
+                statusDiv.textContent = 'Generating your loop...';
                 callBackendForLoop(startLocation);
             },
             () => {
@@ -110,12 +109,11 @@ async function callBackendForLoop(startLocation) {
     
     const statusDiv = document.getElementById('status');
     const generateBtn = document.getElementById('generateBtn');
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
-        const response = await fetch('https://bike-loop-backend.onrender.com/api/generate-loop', { // Your public Render backend URL
+        const response = await fetch('https://bike-loop-backend.onrender.com/api/generate-loop', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -126,23 +124,20 @@ async function callBackendForLoop(startLocation) {
             }),
             signal: controller.signal
         });
-        
+
         clearTimeout(timeoutId);
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'The server returned an error.');
-        }
+        if (!response.ok) throw new Error(await response.text());
 
         const data = await response.json();
-        
-        drawRoute(data.polyline);
-        
+
+        drawRoute(data.polyline, travelMode);
+
         const distanceInKm = (data.totalDistance / 1000).toFixed(2);
         const durationInMinutes = Math.round(data.totalDuration / 60);
-        statusDiv.innerHTML = `Generated a <b>${distanceInKm} km</b> loop. <br> Estimated time: <b>${durationInMinutes} minutes</b>.`;
-        
+        statusDiv.innerHTML = `Generated a <b>${distanceInKm} km</b> loop.<br>Estimated time: <b>${durationInMinutes} minutes</b>.`;
+
         const gmapsLink = document.getElementById('gmaps-link');
-        if (data.googleMapsUrl && gmapsLink) {
+        if (data.googleMapsUrl) {
             gmapsLink.href = data.googleMapsUrl;
             gmapsLink.style.display = 'block';
         }
@@ -151,38 +146,34 @@ async function callBackendForLoop(startLocation) {
         mapLegend.innerHTML = `<i class="${iconClass}"></i> Loop: ${distanceInKm} km`;
         mapLegend.style.display = 'block';
 
-        // Use the new AdvancedMarkerElement
         const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
         startMarker = new AdvancedMarkerElement({
             map: map,
             position: startLocation,
             title: 'Start / Finish',
         });
-        
+
     } catch (error) {
         clearTimeout(timeoutId);
-        console.error('Error:', error);
-        if (error.name === 'AbortError') {
-            statusDiv.textContent = 'Error: The server took too long to respond. Please try again.';
-        } else {
-            statusDiv.textContent = `Error: ${error.message}`;
-        }
+        statusDiv.textContent = `Error: ${error.message}`;
     } finally {
         generateBtn.disabled = false;
     }
 }
 
-function drawRoute(encodedPolyline) {
+function drawRoute(encodedPolyline, travelMode) {
     const path = google.maps.geometry.encoding.decodePath(encodedPolyline);
+    const strokeColor = travelMode === 'WALKING' ? '#0000FF' : '#FF0000'; // blue for walking, red for bike
     const routePolyline = new google.maps.Polyline({
         path: path,
         geodesic: true,
-        strokeColor: '#FF0000',
+        strokeColor,
         strokeOpacity: 0.8,
         strokeWeight: 5
     });
     routePolyline.setMap(map);
     currentPolyline = routePolyline;
+
     const bounds = new google.maps.LatLngBounds();
     path.forEach(point => bounds.extend(point));
     map.fitBounds(bounds);
