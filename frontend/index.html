@@ -4,12 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bike Loop Generator</title>
-    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
+    <!-- NEW: Toggle button for the sidebar -->
+    <button id="toggle-button"><i class="fa-solid fa-bars"></i></button>
+
+    <!-- This is our control panel which will now act as a sidebar -->
     <div id="controls">
         <h1>Bike Loop Generator</h1>
         
@@ -38,9 +41,7 @@
     
     <div id="map"></div>
 
-    <!-- The script loading order and attributes are crucial for stability -->
     <script>
-      // Define this function globally so Google's callback never fails
       function initializeApp() {}
     </script>
     <script src="script.js" defer></script>
