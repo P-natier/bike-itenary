@@ -63,28 +63,28 @@ initializeApp = async () => {
     loadHistory();
 };
 
-function generateLoop() {
-    const statusDiv = document.getElementById('status');
-    const generateBtn = document.getElementById('generateBtn');
-    const address = document.getElementById('address').value;
-    const gmapsLink = document.getElementById('gmaps-link');
-
-    // Clear previous results from the map and UI
+// --- Helper function to clear the UI ---
+function clearUI() {
     if (currentPolyline) currentPolyline.setMap(null);
     if (startMarker) startMarker.map = null;
     startMarker = null;
-
     if (mapLegend) mapLegend.style.display = 'none';
+    const gmapsLink = document.getElementById('gmaps-link');
     if (gmapsLink) gmapsLink.style.display = 'none';
+    document.getElementById('status').textContent = 'Enter a starting point and distance, then click Generate.';
+}
 
+function generateLoop() {
+    clearUI();
+    const generateBtn = document.getElementById('generateBtn');
+    const address = document.getElementById('address').value;
     generateBtn.disabled = true;
 
-    // Decide how to get start coordinates
     if (address.trim() !== "") {
-        statusDiv.textContent = `Finding "${address}"...`;
+        document.getElementById('status').textContent = `Finding "${address}"...`;
         geocodeAddress(address);
     } else {
-        statusDiv.textContent = 'Getting your current location...';
+        document.getElementById('status').textContent = 'Getting your current location...';
         useCurrentLocation();
     }
 }
@@ -127,9 +127,7 @@ async function callBackendForLoop(startLocation) {
     const targetDistance = document.getElementById('distance').value;
     const mandatoryWaypoint = document.getElementById('mandatory_waypoint').value;
     const travelMode = document.querySelector('input[name="travel-mode"]:checked').value;
-    const routeColor = travelMode === 'WALKING' ? '#0000FF' : '#FF0000';
     
-    const statusDiv = document.getElementById('status');
     const generateBtn = document.getElementById('generateBtn');
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -149,50 +147,25 @@ async function callBackendForLoop(startLocation) {
         }
 
         const data = await response.json();
-
-        drawRoute(data.polyline, routeColor);
-
-        const distanceInKm = (data.totalDistance / 1000).toFixed(2);
-        const durationInMinutes = Math.round(data.totalDuration / 60);
-        statusDiv.innerHTML = `Generated a <b>${distanceInKm} km</b> loop.<br>Estimated time: <b>${durationInMinutes} minutes</b>.`;
-
-        const gmapsLink = document.getElementById('gmaps-link');
-        if (data.googleMapsUrl) {
-            gmapsLink.href = data.googleMapsUrl;
-            gmapsLink.style.display = 'block';
-        }
-
-        if (mapLegend) mapLegend.style.display = 'flex';
-
-        // --- THE FIX IS HERE: Create a custom icon element for the marker ---
-        const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
-        const iconClass = travelMode === 'WALKING' ? 'fa-solid fa-person-walking' : 'fa-solid fa-bicycle';
         
-        // 1. Create a new <i> element in JavaScript
-        const markerIcon = document.createElement('i');
-        
-        // 2. Give it the correct Font Awesome classes and our helper class
-        markerIcon.className = `${iconClass} fa-2x fa-map-marker`; // fa-2x makes it bigger
-        
-        // 3. Set its color to match the route
-        markerIcon.style.color = routeColor;
-
-        // 4. Create the marker and pass our custom element to the 'content' property
-        startMarker = new AdvancedMarkerElement({
-            map: map,
-            position: startLocation,
-            title: 'Start / Finish',
-            content: markerIcon, // This replaces the default pin with our icon
-        });
-        // --- END OF FIX ---
-
+        // --- Package all data into a complete history object ---
         const addressText = document.getElementById('address').value.trim();
-        saveToHistory({
+        const historyEntry = {
             address: addressText || 'Current Location',
             startLocation: startLocation,
             distance: targetDistance,
-            mode: travelMode
-        });
+            mode: travelMode,
+            // Store the generated outputs
+            polyline: data.polyline,
+            totalDistance: data.totalDistance,
+            totalDuration: data.totalDuration,
+            googleMapsUrl: data.googleMapsUrl
+        };
+        
+        // Display the new route from the object we just created
+        displayRouteFromHistory(historyEntry);
+        // Save the complete object to localStorage
+        saveToHistory(historyEntry);
         
     } catch (error) {
         clearTimeout(timeoutId);
@@ -202,17 +175,58 @@ async function callBackendForLoop(startLocation) {
     }
 }
 
+// --- NEW: A dedicated function to display a route from a history object ---
+async function displayRouteFromHistory(historyItem) {
+    // 1. Clear any existing route from the map and UI
+    clearUI();
+
+    // 2. Get route properties from the history object
+    const routeColor = historyItem.mode === 'WALKING' ? '#0000FF' : '#FF0000';
+    const distanceInKm = (historyItem.totalDistance / 1000).toFixed(2);
+    const durationInMinutes = Math.round(historyItem.totalDuration / 60);
+
+    // 3. Draw the route and update the UI elements
+    drawRoute(historyItem.polyline, routeColor);
+    
+    document.getElementById('status').innerHTML = `Displaying route from history.<br><b>${distanceInKm} km</b> loop, approx. <b>${durationInMinutes} minutes</b>.`;
+
+    const gmapsLink = document.getElementById('gmaps-link');
+    if (historyItem.googleMapsUrl) {
+        gmapsLink.href = historyItem.googleMapsUrl;
+        gmapsLink.style.display = 'block';
+    }
+
+    if (mapLegend) {
+        const iconClassLegend = historyItem.mode === 'WALKING' ? 'fa-solid fa-person-walking' : 'fa-solid fa-bicycle';
+        mapLegend.innerHTML = `<i class="${iconClassLegend}" style="color: ${routeColor};"></i> Loop: ${distanceInKm} km`;
+        mapLegend.style.display = 'flex';
+    }
+
+    // 4. Create the correct map marker
+    const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+    const iconClassMarker = historyItem.mode === 'WALKING' ? 'fa-solid fa-person-walking' : 'fa-solid fa-bicycle';
+    const markerIcon = document.createElement('i');
+    markerIcon.className = `${iconClassMarker} fa-2x fa-map-marker`;
+    markerIcon.style.color = routeColor;
+
+    startMarker = new AdvancedMarkerElement({
+        map: map,
+        position: historyItem.startLocation,
+        title: 'Start / Finish',
+        content: markerIcon,
+    });
+}
+
 function drawRoute(encodedPolyline, strokeColor) {
     const path = google.maps.geometry.encoding.decodePath(encodedPolyline);
-    const routePolyline = new google.maps.Polyline({
+    currentPolyline = new google.maps.Polyline({
         path,
         geodesic: true,
         strokeColor,
         strokeOpacity: 0.8,
         strokeWeight: 5
     });
-    routePolyline.setMap(map);
-    currentPolyline = routePolyline;
+    currentPolyline.setMap(map);
 
     const bounds = new google.maps.LatLngBounds();
     path.forEach(point => bounds.extend(point));
@@ -221,11 +235,12 @@ function drawRoute(encodedPolyline, strokeColor) {
 
 function saveToHistory(entry) {
     let history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
-    history = history.filter(item => !(item.address === entry.address && item.distance === entry.distance && item.mode === entry.mode));
+    // Prevent duplicate entries based on the generated URL
+    history = history.filter(item => item.googleMapsUrl !== entry.googleMapsUrl);
     history.unshift(entry);
-    const trimmed = history.slice(0, 5);
+    const trimmed = history.slice(0, 5); // Keep only the 5 most recent
     localStorage.setItem('loopHistory', JSON.stringify(trimmed));
-    loadHistory();
+    loadHistory(); // Refresh the list in the UI
 }
 
 function loadHistory() {
@@ -246,9 +261,13 @@ function loadHistory() {
         `;
 
         li.addEventListener('click', () => {
+            // Populate the form fields for reference
             document.getElementById('address').value = item.address === 'Current Location' ? '' : item.address;
             document.getElementById('distance').value = item.distance;
             document.querySelector(`input[name="travel-mode"][value="${item.mode}"]`).checked = true;
+            
+            // Instantly display the stored route on the map
+            displayRouteFromHistory(item);
         });
         historyList.appendChild(li);
     });
