@@ -4,18 +4,25 @@ let geocoder;
 let mapLegend;
 let startMarker = null;
 
+// This function is called by the Google Maps script when it's ready.
 initializeApp = async () => {
+    // Import all necessary Google Maps libraries
     const { Map } = await google.maps.importLibrary("maps");
     const { Geocoder } = await google.maps.importLibrary("geocoding");
     const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
     google.maps.importLibrary("geometry");
 
-    // Lire le dernier point de départ s'il existe
-    let initialPosition = { lat: 48.8566, lng: 2.3522 }; // fallback Paris
-    const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
-    if (history.length > 0 && history[0].startLocation) {
-        initialPosition = history[0].startLocation;
+    // Read the last starting point from history, if it exists, to center the map
+    let initialPosition = { lat: 48.8566, lng: 2.3522 }; // Default to Paris
+    try {
+        const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
+        if (history.length > 0 && history[0].startLocation) {
+            initialPosition = history[0].startLocation;
+        }
+    } catch (e) {
+        console.error("Could not parse history for initial position:", e);
     }
+    
 
     map = new Map(document.getElementById("map"), {
         zoom: 12,
@@ -29,15 +36,15 @@ initializeApp = async () => {
 
     mapLegend = document.getElementById('map-legend');
 
+    // Initialize services and attach event listeners
     geocoder = new Geocoder();
     document.getElementById('generateBtn').addEventListener('click', generateLoop);
 
-    // Sidebar toggle
     document.getElementById("toggle-button").addEventListener("click", () => {
         document.getElementById("controls").classList.toggle("open");
     });
 
-    // Fullscreen mode
+    // Fullscreen mode logic
     const fullscreenBtn = document.getElementById("fullscreen-map-btn");
     const exitFullscreenBtn = document.getElementById("exit-fullscreen-map-btn");
 
@@ -52,6 +59,7 @@ initializeApp = async () => {
         exitFullscreenBtn.style.display = "none";
     });
 
+    // Load the history list into the UI on startup
     loadHistory();
 };
 
@@ -61,15 +69,17 @@ function generateLoop() {
     const address = document.getElementById('address').value;
     const gmapsLink = document.getElementById('gmaps-link');
 
+    // Clear previous results from the map and UI
     if (currentPolyline) currentPolyline.setMap(null);
     if (startMarker) startMarker.map = null;
     startMarker = null;
 
-    mapLegend.style.display = 'none';
-    gmapsLink.style.display = 'none';
+    if (mapLegend) mapLegend.style.display = 'none';
+    if (gmapsLink) gmapsLink.style.display = 'none';
 
     generateBtn.disabled = true;
 
+    // Decide how to get start coordinates
     if (address.trim() !== "") {
         statusDiv.textContent = `Finding "${address}"...`;
         geocodeAddress(address);
@@ -82,10 +92,7 @@ function generateLoop() {
 function geocodeAddress(address) {
     geocoder.geocode({ 'address': address }, (results, status) => {
         if (status === 'OK') {
-            const startLocation = {
-                lat: results[0].geometry.location.lat(),
-                lng: results[0].geometry.location.lng()
-            };
+            const startLocation = { lat: results[0].geometry.location.lat(), lng: results[0].geometry.location.lng() };
             map.setCenter(startLocation);
             document.getElementById('status').textContent = 'Generating your loop...';
             callBackendForLoop(startLocation);
@@ -97,27 +104,22 @@ function geocodeAddress(address) {
 }
 
 function useCurrentLocation() {
-    const statusDiv = document.getElementById('status');
-    const generateBtn = document.getElementById('generateBtn');
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                const startLocation = {
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                };
+                const startLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
                 map.setCenter(startLocation);
-                statusDiv.textContent = 'Generating your loop...';
+                document.getElementById('status').textContent = 'Generating your loop...';
                 callBackendForLoop(startLocation);
             },
             () => {
-                statusDiv.textContent = 'Geolocation failed. Please enable location services or enter an address.';
-                generateBtn.disabled = false;
+                document.getElementById('status').textContent = 'Geolocation failed. Please enable location services or enter an address.';
+                document.getElementById('generateBtn').disabled = false;
             }
         );
     } else {
-        statusDiv.textContent = 'Geolocation is not supported. Please enter an address.';
-        generateBtn.disabled = false;
+        document.getElementById('status').textContent = 'Geolocation is not supported. Please enter an address.';
+        document.getElementById('generateBtn').disabled = false;
     }
 }
 
@@ -125,7 +127,8 @@ async function callBackendForLoop(startLocation) {
     const targetDistance = document.getElementById('distance').value;
     const mandatoryWaypoint = document.getElementById('mandatory_waypoint').value;
     const travelMode = document.querySelector('input[name="travel-mode"]:checked').value;
-
+    const routeColor = travelMode === 'WALKING' ? '#0000FF' : '#FF0000'; // Blue for walking, Red for bike
+    
     const statusDiv = document.getElementById('status');
     const generateBtn = document.getElementById('generateBtn');
     const controller = new AbortController();
@@ -135,21 +138,19 @@ async function callBackendForLoop(startLocation) {
         const response = await fetch('https://bike-loop-backend.onrender.com/api/generate-loop', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                startLocation,
-                targetDistance: parseFloat(targetDistance),
-                mandatoryWaypoint: mandatoryWaypoint.trim() === "" ? null : mandatoryWaypoint,
-                travelMode
-            }),
+            body: JSON.stringify({ startLocation, targetDistance: parseFloat(targetDistance), mandatoryWaypoint: mandatoryWaypoint.trim() || null, travelMode }),
             signal: controller.signal
         });
 
         clearTimeout(timeoutId);
-        if (!response.ok) throw new Error(await response.text());
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || "Server responded with an error.");
+        }
 
         const data = await response.json();
 
-        drawRoute(data.polyline, travelMode);
+        drawRoute(data.polyline, routeColor);
 
         const distanceInKm = (data.totalDistance / 1000).toFixed(2);
         const durationInMinutes = Math.round(data.totalDuration / 60);
@@ -161,35 +162,43 @@ async function callBackendForLoop(startLocation) {
             gmapsLink.style.display = 'block';
         }
 
-        mapLegend.style.display = 'flex';
+        if (mapLegend) mapLegend.style.display = 'flex'; // Use flex for the new legend
 
+        // --- UPDATED: Use a Font Awesome icon for the start marker ---
         const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+        const iconClass = travelMode === 'WALKING' ? 'fa-solid fa-person-walking' : 'fa-solid fa-bicycle';
+        const markerIcon = document.createElement('i');
+        markerIcon.className = `${iconClass} fa-2x fa-map-marker`;
+        markerIcon.style.color = routeColor;
+
         startMarker = new AdvancedMarkerElement({
             map: map,
             position: startLocation,
             title: 'Start / Finish',
+            content: markerIcon,
         });
 
-        // Save to history
+        // Save the successful generation to history
+        const addressText = document.getElementById('address').value.trim();
         saveToHistory({
-            address: document.getElementById('address').value || 'Current location',
+            address: addressText || 'Current Location',
+            startLocation: startLocation,
             distance: targetDistance,
             mode: travelMode
         });
-
+        
     } catch (error) {
         clearTimeout(timeoutId);
-        statusDiv.textContent = `Error: ${error.message}`;
+        document.getElementById('status').textContent = `Error: ${error.message}`;
     } finally {
         generateBtn.disabled = false;
     }
 }
 
-function drawRoute(encodedPolyline, travelMode) {
+function drawRoute(encodedPolyline, strokeColor) {
     const path = google.maps.geometry.encoding.decodePath(encodedPolyline);
-    const strokeColor = travelMode === 'WALKING' ? '#0000FF' : '#FF0000';
     const routePolyline = new google.maps.Polyline({
-        path: path,
+        path,
         geodesic: true,
         strokeColor,
         strokeOpacity: 0.8,
@@ -204,7 +213,9 @@ function drawRoute(encodedPolyline, travelMode) {
 }
 
 function saveToHistory(entry) {
-    const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
+    let history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
+    // Prevent duplicate entries
+    history = history.filter(item => !(item.address === entry.address && item.distance === entry.distance && item.mode === entry.mode));
     history.unshift(entry);
     const trimmed = history.slice(0, 5);
     localStorage.setItem('loopHistory', JSON.stringify(trimmed));
@@ -213,16 +224,27 @@ function saveToHistory(entry) {
 
 function loadHistory() {
     const historyList = document.getElementById('history-list');
-    historyList.innerHTML = '';
     const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
+    
+    historyList.innerHTML = ''; // Clear the list before repopulating
+
     history.forEach((item) => {
         const li = document.createElement('li');
-        const label = `${item.address} — ${item.distance}km — ${item.mode.toLowerCase()}`;
-        li.textContent = label;
+        
+        // --- UPDATED: Use icons and colors in the history list ---
+        const iconClass = item.mode === 'WALKING' ? 'fa-solid fa-person-walking' : 'fa-solid fa-bicycle';
+        const color = item.mode === 'WALKING' ? 'blue' : 'red';
+
+        li.innerHTML = `
+            <i class="${iconClass}" style="color: ${color}; width: 20px; text-align: center;"></i> 
+            ${item.address} - ${item.distance} km
+        `;
+
         li.addEventListener('click', () => {
-            document.getElementById('address').value = item.address === 'Current location' ? '' : item.address;
+            document.getElementById('address').value = item.address === 'Current Location' ? '' : item.address;
             document.getElementById('distance').value = item.distance;
             document.querySelector(`input[name="travel-mode"][value="${item.mode}"]`).checked = true;
+            document.getElementById("controls").classList.remove("open");
         });
         historyList.appendChild(li);
     });
