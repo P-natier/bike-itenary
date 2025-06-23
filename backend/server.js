@@ -11,6 +11,63 @@ app.use(express.json());
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const GOOGLE_MAPS_API_BASE = 'https://maps.googleapis.com/maps/api';
 
+// At the top of the file
+const OpenAI = require('openai');
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY, // Add this to your .env file and Render
+});
+
+// A new function to get AI-improved waypoints
+async function getAiImprovedWaypoints(startLocation, initialWaypoints, nearbyPlaces, targetDistance, travelMode) {
+    // 1. Construct the detailed prompt
+    const waypointsText = JSON.stringify(initialWaypoints);
+    const placesText = nearbyPlaces.map(p => p.name).join(', ');
+
+    const prompt = `
+        You are an expert local tour guide and route planner for cyclists.
+        Your task is to improve a pre-calculated route by modifying its waypoints.
+        
+        Start Location: ${JSON.stringify(startLocation)}
+        Target Distance: ${targetDistance} km
+        Travel Mode: ${travelMode}
+        Draft Waypoints: ${waypointsText}
+        Nearby Interesting Places: ${placesText}
+
+        Please modify the draft waypoints to create a more enjoyable and varied itinerary.
+        Prioritize bike lanes, greenways, and scenic paths. Avoid out-and-back segments.
+        If possible, include one or two of the interesting places from the provided list.
+        The final route should still be a loop starting and ending at the start location.
+
+        You MUST respond ONLY with a valid JSON object in the following format:
+        {"waypoints": [{"lat": 45.123, "lng": 1.456}, ...]}
+    `;
+
+    try {
+        console.log("Calling OpenAI to improve route...");
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o", // Or another suitable model
+            messages: [{ "role": "user", "content": prompt }],
+            response_format: { "type": "json_object" }, // This is crucial!
+        });
+
+        const aiResponse = completion.choices[0].message.content;
+        const parsedJson = JSON.parse(aiResponse);
+
+        // 2. Validate the response
+        if (parsedJson && Array.isArray(parsedJson.waypoints)) {
+            console.log("Successfully got improved waypoints from AI.");
+            return parsedJson.waypoints; // Return the new waypoints
+        } else {
+            throw new Error("AI response was not in the expected format.");
+        }
+
+    } catch (error) {
+        console.error("OpenAI call failed:", error.message);
+        console.log("Falling back to original geometric waypoints.");
+        return initialWaypoints; // 3. Fallback on error
+    }
+}
+
 // --- Helper functions ---
 function calculateDestinationPoint(lat, lng, bearing, distance) {
     const R = 6371;
