@@ -1,4 +1,4 @@
-/* Reset / Base */
+/* Base */
 body, html {
   margin: 0;
   padding: 0;
@@ -15,7 +15,7 @@ body, html {
   left: 0;
 }
 
-/* Panneau latéral */
+/* Controls panel */
 #controls {
   position: absolute;
   top: 0;
@@ -39,10 +39,11 @@ body, html {
 
 #controls h1 {
   font-size: 1.5rem;
-  margin: 0 0 1rem;
+  margin: 0 0 1.2rem;
+  line-height: 1.1;
 }
 
-/* Bouton toggle (menu) */
+/* Toggle button (menu) */
 #toggle-button {
   position: absolute;
   top: 1rem;
@@ -55,13 +56,14 @@ body, html {
   padding: 0.5rem 1rem;
   border-radius: 6px;
   cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 #toggle-button i {
   pointer-events: none;
 }
 
-/* Inputs & boutons */
+/* Inputs & buttons */
 input[type="text"],
 input[type="number"] {
   width: 100%;
@@ -103,7 +105,7 @@ button {
   border-radius: 4px;
 }
 
-/* Sélecteurs mode de déplacement */
+/* Mode selector */
 #mode-selector {
   display: flex;
   justify-content: space-around;
@@ -118,11 +120,12 @@ button {
   cursor: pointer;
 }
 
+/* Status */
 #status {
   margin-top: 1rem;
 }
 
-/* Historique */
+/* History */
 #history {
   margin-top: 1.5rem;
 }
@@ -142,6 +145,11 @@ button {
   font-size: 0.95rem;
 }
 
+#history-list li i {
+  margin-right: 0.5rem;
+  color: #2e6ff2;
+}
+
 #history-list a {
   text-decoration: none;
   color: #2e6ff2;
@@ -151,20 +159,7 @@ button {
   text-decoration: underline;
 }
 
-/* Légende */
-#map-legend {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  background: rgba(255,255,255,0.9);
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  z-index: 10;
-  box-shadow: 0 0 5px rgba(0,0,0,0.2);
-}
-
-/* Plein écran */
+/* Fullscreen buttons */
 #fullscreen-map-btn,
 #exit-fullscreen-map-btn {
   position: absolute;
