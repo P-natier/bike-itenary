@@ -94,6 +94,10 @@ async function callBackendForLoop(startLocation) {
     const statusDiv = document.getElementById('status');
     const generateBtn = document.getElementById('generateBtn');
 
+    // --- NEW: Add a timeout controller for slow server wake-ups ---
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30-second timeout
+
     try {
         const response = await fetch('https://bike-loop-backend.onrender.com/api/generate-loop', { // Make sure this is your Render URL
             method: 'POST',
@@ -103,7 +107,11 @@ async function callBackendForLoop(startLocation) {
                 targetDistance: parseFloat(targetDistance),
                 mandatoryWaypoint: mandatoryWaypoint.trim() === "" ? null : mandatoryWaypoint,
             }),
+            signal: controller.signal // Connect the timeout controller to the fetch request
         });
+        
+        // --- NEW: Clear the timeout if the request succeeds in time ---
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
             const errorData = await response.json();
@@ -116,7 +124,6 @@ async function callBackendForLoop(startLocation) {
         const durationInMinutes = Math.round(data.totalDuration / 60);
         statusDiv.innerHTML = `Generated a <b>${distanceInKm} km</b> loop. <br> Estimated time: <b>${durationInMinutes} minutes</b>.`;
         
-        // Activate the Google Maps link
         const gmapsLink = document.getElementById('gmaps-link');
         if (data.googleMapsUrl && gmapsLink) {
             gmapsLink.href = data.googleMapsUrl;
@@ -124,8 +131,13 @@ async function callBackendForLoop(startLocation) {
         }
 
     } catch (error) {
+        clearTimeout(timeoutId); // Also clear timeout on error
         console.error('Error:', error);
-        statusDiv.textContent = `Error: ${error.message}`;
+        if (error.name === 'AbortError') {
+            statusDiv.textContent = 'Error: The server took too long to respond. Please try again.';
+        } else {
+            statusDiv.textContent = `Error: ${error.message}`;
+        }
     } finally {
         generateBtn.disabled = false;
     }
