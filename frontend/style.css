@@ -33,25 +33,47 @@ body, html {
 }
 
 /* --- Toggle Button --- */
+/* --- UPDATED: Toggle Button Styles --- */
 #toggle-button {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    z-index: 11;
-    background-color: white;
+    /* No longer needs position: absolute */
+    background: none;
     border: none;
     border-radius: 50%;
     width: 40px;
     height: 40px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 16px;
+    font-size: 20px;
+    color: #333;
+    box-shadow: none; /* Remove the old shadow */
 }
+
 #toggle-button:hover {
     background-color: #f0f0f0;
+}
+
+/* --- NEW: Sidebar Header Styles --- */
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Pushes items to the ends */
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.sidebar-header .logo {
+    height: 40px; /* Adjust size as needed */
+    width: 40px;
+    margin-right: 15px;
+}
+
+.sidebar-header h2 {
+    margin: 0;
+    font-size: 1.8em;
+    flex-grow: 1; /* Allows the title to take up remaining space */
 }
 
 /* --- Fullscreen Map Buttons --- */
