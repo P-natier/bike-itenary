@@ -10,7 +10,13 @@ initializeApp = async () => {
     const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
     google.maps.importLibrary("geometry");
 
-    const initialPosition = { lat: 48.8566, lng: 2.3522 };
+    // Lire le dernier point de départ s'il existe
+    let initialPosition = { lat: 48.8566, lng: 2.3522 }; // fallback Paris
+    const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
+    if (history.length > 0 && history[0].startLocation) {
+        initialPosition = history[0].startLocation;
+    }
+
     map = new Map(document.getElementById("map"), {
         zoom: 12,
         center: initialPosition,
@@ -119,7 +125,6 @@ async function callBackendForLoop(startLocation) {
     const targetDistance = document.getElementById('distance').value;
     const mandatoryWaypoint = document.getElementById('mandatory_waypoint').value;
     const travelMode = document.querySelector('input[name="travel-mode"]:checked').value;
-    const isLoop = document.getElementById('isLoop').checked;
 
     const statusDiv = document.getElementById('status');
     const generateBtn = document.getElementById('generateBtn');
@@ -134,8 +139,7 @@ async function callBackendForLoop(startLocation) {
                 startLocation,
                 targetDistance: parseFloat(targetDistance),
                 mandatoryWaypoint: mandatoryWaypoint.trim() === "" ? null : mandatoryWaypoint,
-                travelMode,
-                isLoop
+                travelMode
             }),
             signal: controller.signal
         });
@@ -149,7 +153,7 @@ async function callBackendForLoop(startLocation) {
 
         const distanceInKm = (data.totalDistance / 1000).toFixed(2);
         const durationInMinutes = Math.round(data.totalDuration / 60);
-        statusDiv.innerHTML = `Generated a <b>${distanceInKm} km</b> ${isLoop ? 'loop' : 'route'}.<br>Estimated time: <b>${durationInMinutes} minutes</b>.`;
+        statusDiv.innerHTML = `Generated a <b>${distanceInKm} km</b> loop.<br>Estimated time: <b>${durationInMinutes} minutes</b>.`;
 
         const gmapsLink = document.getElementById('gmaps-link');
         if (data.googleMapsUrl) {
@@ -171,7 +175,7 @@ async function callBackendForLoop(startLocation) {
             address: document.getElementById('address').value || 'Current location',
             distance: targetDistance,
             mode: travelMode,
-            isLoop
+            startLocation
         });
 
     } catch (error) {
@@ -212,15 +216,14 @@ function loadHistory() {
     const historyList = document.getElementById('history-list');
     historyList.innerHTML = '';
     const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
-    history.forEach((item, idx) => {
+    history.forEach((item) => {
         const li = document.createElement('li');
-        const label = `${item.address} — ${item.distance}km — ${item.mode.toLowerCase()} ${item.isLoop ? '🔁' : '➡'}`;
+        const label = `${item.address} — ${item.distance}km — ${item.mode.toLowerCase()}`;
         li.textContent = label;
         li.addEventListener('click', () => {
             document.getElementById('address').value = item.address === 'Current location' ? '' : item.address;
             document.getElementById('distance').value = item.distance;
             document.querySelector(`input[name="travel-mode"][value="${item.mode}"]`).checked = true;
-            document.getElementById('isLoop').checked = item.isLoop;
         });
         historyList.appendChild(li);
     });
