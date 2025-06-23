@@ -1,43 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bike Loop Generator</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="manifest" href="manifest.json" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bike Loop Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <div id="app-container">
     <div id="controls">
-      <h1>Bike Loop Generator</h1>
+        <h1>Bike Loop Generator</h1>
+        
+        <label for="address">Starting Address:</label>
+        <input type="text" id="address" placeholder="Type an address or leave blank for current location">
+        
+        <label for="mandatory_waypoint">Include this point (optional):</label>
+        <input type="text" id="mandatory_waypoint" placeholder="e.g., 'Eiffel Tower, Paris'">
 
-      <label for="address">Starting Address:</label>
-      <input type="text" id="address" placeholder="Type an address or leave blank for current location" />
+        <label for="distance">Loop Distance (km):</label>
+        <input type="number" id="distance" value="20" min="1">
+        
+        <button id="generateBtn">Generate Loop</button>
+        
+        <div id="status">Enter a starting point and distance, then click Generate.</div>
 
-      <label for="mandatory_waypoint">Include this point (optional):</label>
-      <input type="text" id="mandatory_waypoint" placeholder="e.g., 'Eiffel Tower, Paris'" />
-
-      <label for="distance">Loop Distance (km):</label>
-      <input type="number" id="distance" value="20" min="1" />
-
-      <button id="generateBtn">Generate Loop</button>
-      <div id="status">Enter a starting point and distance, then click Generate.</div>
-
-      <a id="gmaps-link" href="#" target="_blank">Open in Google Maps</a>
+        <!-- NEW: Add this link, it will be hidden by default -->
+        <a id="gmaps-link" href="#" target="_blank" style="display: none;">Open in Google Maps</a>
     </div>
     <div id="map"></div>
-  </div>
 
-  <script>
-    function initializeApp() {
-      // placeholder
-    }
-  </script>
-  <script src="script.js" defer></script>
-  <script
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&libraries=geometry,places&callback=initializeApp"
-    async
-  ></script>
+    <!-- The order of these scripts is important! -->
+    
+    <!-- NEW: Define the callback function BEFORE Google's script runs -->
+    <script>
+      function initializeApp() {
+        // This function will be filled in by the main script later
+        // It just needs to exist when Google's script loads.
+      }
+    </script>
+
+    <script src="script.js" defer></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&libraries=geometry,places&callback=initializeApp" async></script>
 </body>
 </html>
