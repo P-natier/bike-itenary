@@ -36,52 +36,47 @@ body, html {
 
 
 /* --- UPDATED: Toggle Button Styles (Now outside the panel) --- */
-#toggle-button {
+#logo-toggle-button {
     position: absolute;
     top: 15px;
     left: 15px;
     z-index: 11; /* Sits on top of everything */
-    background-color: white;
-    border: none;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
+    
+    width: 45px;  /* A bit larger for a logo */
+    height: 45px;
+    
+    /* Use your logo as the background image */
+    background-image: url('icon-192.png'); /* IMPORTANT: Make sure this is the correct path to your logo */
+    background-size: cover; /* Ensure the logo fits perfectly */
+    background-position: center;
+    
+    border: 2px solid #fff; /* Optional: adds a nice white border */
+    border-radius: 50%; /* Makes it circular */
+    
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     cursor: pointer;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 16px;
-    color: #333;
-    transition: transform 0.3s ease-in-out; /* Add transition for smooth movement */
+    transition: transform 0.3s ease-in-out;
 }
 
-/* NEW: When the sidebar is open, move the button to the right */
-#controls.open + #toggle-button {
+/* Find the old #controls.open + #toggle-button rule and update it */
+#controls.open + #logo-toggle-button {
     transform: translateX(340px); /* Move it by the width of the sidebar */
 }
 
 
-/* --- UPDATED: Sidebar Header for better alignment --- */
+/* Find the .sidebar-header and update it to remove the logo space */
 .sidebar-header {
     display: flex;
-    align-items: center; /* Vertically align items */
+    align-items: center;
+    justify-content: center; /* Center the title now */
     padding-bottom: 15px;
     margin-bottom: 15px;
     border-bottom: 1px solid #eee;
 }
 
-.sidebar-header .logo {
-    height: 40px; /* Control logo size */
-    width: 40px;
-    margin-right: 15px;
-}
-
 .sidebar-header h2 {
     margin: 0;
     font-size: 1.8em;
-    font-weight: bold;
-    color: #333;
 }
 
 /* --- Fullscreen Map Buttons --- */
