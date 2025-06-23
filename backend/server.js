@@ -5,7 +5,23 @@ const axios = require('axios');
 const path = require('path');
 
 const app = express();
-app.use(cors());
+const allowedOrigins = ['https://delightful-treacle-d03c96.netlify.app'];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // The 'origin' is the URL of the site making the request (e.g., your Netlify app).
+    // We check if this origin is in our list of allowed sites.
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      // If it's in the list (or if there's no origin, like for server-to-server), allow it.
+      callback(null, true);
+    } else {
+      // If it's not in the list, reject it with a CORS error.
+      callback(new Error('Not allowed by CORS'));
+    }
+  }
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
