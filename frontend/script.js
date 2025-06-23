@@ -10,8 +10,8 @@ initializeApp = async () => {
     const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
     google.maps.importLibrary("geometry");
 
-    // Lire le dernier point de départ s'il existe
-    let initialPosition = { lat: 48.8566, lng: 2.3522 }; // fallback Paris
+    // Utiliser dernière position de l'historique si dispo
+    let initialPosition = { lat: 48.8566, lng: 2.3522 };
     const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
     if (history.length > 0 && history[0].startLocation) {
         initialPosition = history[0].startLocation;
@@ -28,16 +28,13 @@ initializeApp = async () => {
     });
 
     mapLegend = document.getElementById('map-legend');
-
     geocoder = new Geocoder();
     document.getElementById('generateBtn').addEventListener('click', generateLoop);
 
-    // Sidebar toggle
     document.getElementById("toggle-button").addEventListener("click", () => {
         document.getElementById("controls").classList.toggle("open");
     });
 
-    // Fullscreen mode
     const fullscreenBtn = document.getElementById("fullscreen-map-btn");
     const exitFullscreenBtn = document.getElementById("exit-fullscreen-map-btn");
 
@@ -164,13 +161,15 @@ async function callBackendForLoop(startLocation) {
         mapLegend.style.display = 'flex';
 
         const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+        const icon = document.createElement("div");
+        icon.innerHTML = `<i class="fa-solid ${travelMode === 'WALKING' ? 'fa-person-walking' : 'fa-bicycle'}" style="font-size:22px;color:${travelMode === 'WALKING' ? '#0000FF' : '#FF0000'}"></i>`;
         startMarker = new AdvancedMarkerElement({
             map: map,
             position: startLocation,
-            title: 'Start / Finish',
+            content: icon,
+            title: 'Start / Finish'
         });
 
-        // Save to history
         saveToHistory({
             address: document.getElementById('address').value || 'Current location',
             distance: targetDistance,
@@ -218,8 +217,8 @@ function loadHistory() {
     const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
     history.forEach((item) => {
         const li = document.createElement('li');
-        const label = `${item.address} — ${item.distance}km — ${item.mode.toLowerCase()}`;
-        li.textContent = label;
+        const iconClass = item.mode === 'WALKING' ? 'fa-person-walking' : 'fa-bicycle';
+        li.innerHTML = `<i class="fa-solid ${iconClass}"></i> ${item.address} — ${item.distance} km`;
         li.addEventListener('click', () => {
             document.getElementById('address').value = item.address === 'Current location' ? '' : item.address;
             document.getElementById('distance').value = item.distance;
