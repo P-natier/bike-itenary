@@ -30,6 +30,15 @@
     <div id="map"></div>
 
     <!-- The order of these scripts is important! -->
+    
+    <!-- NEW: Define the callback function BEFORE Google's script runs -->
+    <script>
+      function initializeApp() {
+        // This function will be filled in by the main script later
+        // It just needs to exist when Google's script loads.
+      }
+    </script>
+
     <script src="script.js" defer></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&libraries=geometry,places&callback=initializeApp" async></script>
 </body>
