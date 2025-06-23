@@ -244,7 +244,6 @@ function loadHistory() {
             document.getElementById('address').value = item.address === 'Current Location' ? '' : item.address;
             document.getElementById('distance').value = item.distance;
             document.querySelector(`input[name="travel-mode"][value="${item.mode}"]`).checked = true;
-            document.getElementById("controls").classList.remove("open");
         });
         historyList.appendChild(li);
     });
