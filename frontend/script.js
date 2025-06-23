@@ -1,9 +1,11 @@
+// In frontend/script.js
+
 let map;
 let currentPolyline = null;
 let geocoder;
 
-// This async function will now be CALLED BY GOOGLE when its script is ready.
-async function initializeApp() {
+// REDEFINE the initializeApp function that already exists in the HTML
+initializeApp = async () => {
     const { Map } = await google.maps.importLibrary("maps");
     const { Geocoder } = await google.maps.importLibrary("geocoding");
     google.maps.importLibrary("geometry");
@@ -18,7 +20,7 @@ async function initializeApp() {
     geocoder = new Geocoder();
 
     document.getElementById('generateBtn').addEventListener('click', generateLoop);
-}
+};
 
 function generateLoop() {
     const statusDiv = document.getElementById('status');
