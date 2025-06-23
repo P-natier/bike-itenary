@@ -3,7 +3,7 @@ body, html {
     margin: 0;
     padding: 0;
     font-family: Arial, sans-serif;
-    overflow: hidden; /* Prevent body from scrolling */
+    overflow: hidden;
 }
 
 #map {
@@ -11,7 +11,7 @@ body, html {
     width: 100%;
 }
 
-/* --- NEW: Sidebar Styles --- */
+/* --- Sidebar Styles --- */
 #controls {
     position: absolute;
     top: 0;
@@ -23,25 +23,21 @@ body, html {
     z-index: 10;
     box-shadow: 0 0 10px rgba(0,0,0,0.2);
     padding: 20px;
-    box-sizing: border-box; /* Important for padding */
-    overflow-y: auto; /* Allow scrolling within the panel */
-    
-    /* Start hidden off-screen to the left */
+    box-sizing: border-box;
+    overflow-y: auto;
     transform: translateX(-100%);
     transition: transform 0.3s ease-in-out;
 }
-
-/* This class will be added by JS to show the sidebar */
 #controls.open {
     transform: translateX(0);
 }
 
-/* --- NEW: Toggle Button Styles --- */
+/* --- Toggle Button --- */
 #toggle-button {
     position: absolute;
     top: 15px;
     left: 15px;
-    z-index: 11; /* On top of the sidebar */
+    z-index: 11;
     background-color: white;
     border: none;
     border-radius: 50%;
@@ -54,21 +50,43 @@ body, html {
     align-items: center;
     font-size: 16px;
 }
-
 #toggle-button:hover {
     background-color: #f0f0f0;
 }
 
+/* --- Fullscreen Map Buttons --- */
+#fullscreen-map-btn,
+#exit-fullscreen-map-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    z-index: 11;
+    background-color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+    display: none;
+}
+#fullscreen-map-btn {
+    display: block;
+}
+#fullscreen-map-btn:hover,
+#exit-fullscreen-map-btn:hover {
+    background-color: #f0f0f0;
+}
 
-/* --- Styles for elements inside the sidebar --- */
+/* --- Input & Buttons --- */
 #controls label {
     display: block;
     margin-top: 15px;
     font-weight: bold;
     font-size: 0.9em;
 }
-
-#controls input[type="text"], #controls input[type="number"] {
+#controls input[type="text"],
+#controls input[type="number"] {
     width: 100%;
     padding: 8px;
     margin-top: 5px;
@@ -76,7 +94,6 @@ body, html {
     border-radius: 4px;
     box-sizing: border-box;
 }
-
 #controls button {
     padding: 10px 15px;
     background-color: #4285F4;
@@ -89,17 +106,16 @@ body, html {
     margin-top: 15px;
     font-size: 1em;
 }
-
 #controls button:hover {
     background-color: #357ae8;
 }
-
 #status {
     margin-top: 10px;
     font-size: 0.9em;
     color: #333;
 }
 
+/* --- Mode Selector --- */
 #mode-selector {
     display: flex;
     justify-content: space-around;
@@ -109,19 +125,18 @@ body, html {
     border-radius: 4px;
     padding: 8px 5px;
 }
-
 #mode-selector label {
     margin: 0;
     cursor: pointer;
     font-weight: normal;
 }
-
 #mode-selector i {
     margin-right: 5px;
     width: 20px;
     text-align: center;
 }
 
+/* --- Google Maps link --- */
 #gmaps-link {
     display: block;
     margin-top: 15px;
@@ -132,11 +147,11 @@ body, html {
     border-radius: 4px;
     font-weight: bold;
 }
-
 #gmaps-link:hover {
     background-color: #2c9048;
 }
 
+/* --- Map Legend --- */
 #map-legend {
     background-color: #fff;
     padding: 10px;
@@ -145,11 +160,39 @@ body, html {
     border-radius: 4px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     font-size: 14px;
-    display: none;
+    z-index: 10;
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
-
 #map-legend i {
     font-size: 20px;
-    margin-right: 8px;
-    vertical-align: middle;
+    margin-right: 4px;
+}
+
+/* --- History --- */
+#history {
+    margin-top: 30px;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+}
+#history h3 {
+    margin: 0 0 10px 0;
+    font-size: 1em;
+}
+#history-list {
+    list-style: none;
+    padding-left: 0;
+    font-size: 0.9em;
+}
+#history-list li {
+    margin-bottom: 6px;
+    cursor: pointer;
+    color: #1a73e8;
+}
+#history-list li:hover {
+    text-decoration: underline;
 }
