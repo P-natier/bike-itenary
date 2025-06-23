@@ -4,48 +4,21 @@ const urlsToCache = [
   '/index.html',
   '/style.css',
   '/script.js',
-  '/manifest.json',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
+  '/manifest.json'
 ];
 
-// Installation du Service Worker
-self.addEventListener('install', (event) => {
+self.addEventListener('install', function (event) {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
+    caches.open(CACHE_NAME).then(function (cache) {
       return cache.addAll(urlsToCache);
     })
   );
 });
 
-// Activation : suppression des anciens caches
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keyList) => {
-      return Promise.all(
-        keyList.map((key) => {
-          if (key !== CACHE_NAME) return caches.delete(key);
-        })
-      );
-    })
-  );
-});
-
-// Interception des requêtes
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
-
+self.addEventListener('fetch', function (event) {
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      // Cache hit
-      if (response) return response;
-
-      // Sinon, requête réseau
-      return fetch(event.request).catch(() => {
-        // Si offline : retour index.html
-        if (event.request.destination === 'document') {
-          return caches.match('/index.html');
-        }
-      });
+    caches.match(event.request).then(function (response) {
+      return response || fetch(event.request);
     })
   );
 });
