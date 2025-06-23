@@ -67,3 +67,15 @@ body, html {
 #gmaps-link:hover {
     background-color: #2c9048;
 }
+
+#mode-selector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+}
+
+#mode-selector label {
+    margin: 0 10px 0 3px;
+    cursor: pointer;
+}
