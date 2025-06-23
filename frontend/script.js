@@ -1,9 +1,12 @@
 let map;
 let currentPolyline = null;
 let geocoder;
+// Global variables for the new UI elements
+let mapLegend;
+let startMarker = null;
 
-// REDEFINE the initializeApp function that already exists in the HTML
-// This is called by the Google Maps script when it's ready.
+// This function is called by the Google Maps script tag when it's ready.
+// We redefine the empty function that was created in the HTML.
 initializeApp = async () => {
     // Wait for the necessary Google Maps libraries to be fully loaded
     const { Map } = await google.maps.importLibrary("maps");
@@ -16,7 +19,16 @@ initializeApp = async () => {
         zoom: 12,
         center: initialPosition,
         mapTypeControl: false,
+        // Hide some default controls to make room for our custom legend
+        fullscreenControl: false,
+        streetViewControl: false,
+        zoomControl: false,
     });
+
+    // Create our custom legend div and add it to the map's controls
+    mapLegend = document.createElement('div');
+    mapLegend.id = 'map-legend';
+    map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(mapLegend);
 
     // Initialize the geocoder service
     geocoder = new Geocoder();
@@ -36,8 +48,13 @@ function generateLoop() {
     if (currentPolyline) {
         currentPolyline.setMap(null);
     }
+    if (startMarker) {
+        startMarker.setMap(null);
+    }
+    if (mapLegend) {
+        mapLegend.style.display = 'none';
+    }
     
-    // Hide the Google Maps link at the start of a new generation
     if (gmapsLink) {
         gmapsLink.style.display = 'none';
     }
@@ -46,11 +63,9 @@ function generateLoop() {
 
     // 2. Decide how to get the starting coordinates
     if (address.trim() !== "") {
-        // User typed an address, so we need to geocode it
         statusDiv.textContent = `Finding "${address}"...`;
         geocodeAddress(address);
     } else {
-        // User wants to use their current location
         statusDiv.textContent = 'Getting your current location...';
         useCurrentLocation();
     }
@@ -66,10 +81,9 @@ function geocodeAddress(address) {
             };
             map.setCenter(startLocation);
             document.getElementById('status').textContent = 'Generating your loop...';
-            // Once we have coordinates, call the backend
             callBackendForLoop(startLocation);
         } else {
-            document.getElementById('status').textContent = `Could not find that address. Please try a different one. Reason: ${status}`;
+            document.getElementById('status').textContent = `Could not find that address. Reason: ${status}`;
             document.getElementById('generateBtn').disabled = false;
         }
     });
@@ -85,8 +99,7 @@ function useCurrentLocation() {
             (position) => {
                 const startLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
                 map.setCenter(startLocation);
-                statusDiv.textContent = 'Generating your loop...';
-                // Once we have coordinates, call the backend
+                document.getElementById('status').textContent = 'Generating your loop...';
                 callBackendForLoop(startLocation);
             },
             () => {
@@ -95,7 +108,7 @@ function useCurrentLocation() {
             }
         );
     } else {
-        statusDiv.textContent = 'Geolocation is not supported by your browser. Please enter an address.';
+        statusDiv.textContent = 'Geolocation is not supported. Please enter an address.';
         generateBtn.disabled = false;
     }
 }
@@ -104,7 +117,6 @@ function useCurrentLocation() {
 async function callBackendForLoop(startLocation) {
     const targetDistance = document.getElementById('distance').value;
     const mandatoryWaypoint = document.getElementById('mandatory_waypoint').value;
-    // Get the selected travel mode from the radio buttons
     const travelMode = document.querySelector('input[name="travel-mode"]:checked').value;
     
     const statusDiv = document.getElementById('status');
@@ -122,12 +134,11 @@ async function callBackendForLoop(startLocation) {
                 startLocation,
                 targetDistance: parseFloat(targetDistance),
                 mandatoryWaypoint: mandatoryWaypoint.trim() === "" ? null : mandatoryWaypoint,
-                travelMode: travelMode, // Send the new travel mode
+                travelMode: travelMode,
             }),
-            signal: controller.signal // Connect the timeout to the fetch request
+            signal: controller.signal
         });
         
-        // If we get a response, clear the timeout
         clearTimeout(timeoutId);
 
         if (!response.ok) {
@@ -137,39 +148,54 @@ async function callBackendForLoop(startLocation) {
 
         const data = await response.json();
         
-        // Draw the route on the map
         drawRoute(data.polyline);
         
-        // Update the status with the results
         const distanceInKm = (data.totalDistance / 1000).toFixed(2);
         const durationInMinutes = Math.round(data.totalDuration / 60);
         statusDiv.innerHTML = `Generated a <b>${distanceInKm} km</b> loop. <br> Estimated time: <b>${durationInMinutes} minutes</b>.`;
         
-        // Display and update the "Open in Google Maps" link
         const gmapsLink = document.getElementById('gmaps-link');
         if (data.googleMapsUrl && gmapsLink) {
             gmapsLink.href = data.googleMapsUrl;
             gmapsLink.style.display = 'block';
         }
 
+        // --- Update Legend and Add Marker ---
+        const iconClass = travelMode === 'WALKING' ? 'fa-solid fa-person-walking' : 'fa-solid fa-bicycle';
+
+        mapLegend.innerHTML = `<i class="${iconClass}"></i> Loop: ${distanceInKm} km`;
+        mapLegend.style.display = 'block';
+
+        startMarker = new google.maps.Marker({
+            position: startLocation,
+            map: map,
+            title: 'Start / Finish',
+            icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: "#FF0000",
+                fillOpacity: 1,
+                strokeWeight: 2,
+                strokeColor: "#FFFFFF"
+            }
+        });
+        
     } catch (error) {
-        clearTimeout(timeoutId); // Also clear the timeout if an error occurs
+        clearTimeout(timeoutId);
         console.error('Error:', error);
         
         if (error.name === 'AbortError') {
-            statusDiv.textContent = 'Error: The server took too long to respond. This can happen on the first try. Please try again.';
+            statusDiv.textContent = 'Error: The server took too long to respond. Please try again.';
         } else {
             statusDiv.textContent = `Error: ${error.message}`;
         }
     } finally {
-        // Re-enable the button so the user can try again
         generateBtn.disabled = false;
     }
 }
 
 // This function takes the encoded route path and draws it on the map
 function drawRoute(encodedPolyline) {
-    // Decode the polyline string into a path of coordinates
     const path = google.maps.geometry.encoding.decodePath(encodedPolyline);
 
     const routePolyline = new google.maps.Polyline({
@@ -183,7 +209,6 @@ function drawRoute(encodedPolyline) {
     routePolyline.setMap(map);
     currentPolyline = routePolyline; // Save it so we can remove it later
 
-    // Adjust the map's zoom and center to fit the entire route
     const bounds = new google.maps.LatLngBounds();
     path.forEach(point => bounds.extend(point));
     map.fitBounds(bounds);
