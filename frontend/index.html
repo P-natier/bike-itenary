@@ -1,69 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bike Loop Generator</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bike Loop Generator</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
 </head>
 <body>
-    <button id="toggle-button"><i class="fa-solid fa-bars"></i></button>
-    <button id="fullscreen-map-btn" title="Full screen map">🗖</button>
-    <button id="exit-fullscreen-map-btn" title="Exit full screen">✖</button>
+  <button id="toggle-button"><i class="fa-solid fa-bars"></i></button>
+  <button id="fullscreen-map-btn" title="Full screen map">🗖</button>
+  <button id="exit-fullscreen-map-btn" title="Exit full screen">✖</button>
 
-    <div id="controls">
-        <h1>Bike Loop Generator</h1>
-        
-        <label for="address">Starting Address:</label>
-        <input type="text" id="address" placeholder="Type an address or leave blank">
-        
-        <label for="mandatory_waypoint">Include this point (optional):</label>
-        <input type="text" id="mandatory_waypoint" placeholder="e.g., 'Eiffel Tower, Paris'">
+  <div id="controls">
+    <h1>Bike Loop Generator</h1>
 
-        <label for="distance">Loop Distance (km):</label>
-        <input type="number" id="distance" value="20" min="1">
+    <label for="address">Starting Address:</label>
+    <input type="text" id="address" placeholder="Type an address or leave blank">
 
-        <div>
-            <input type="checkbox" id="isLoop" checked>
-            <label for="isLoop">Return to start (loop)</label>
-        </div>
+    <label for="mandatory_waypoint">Include this point (optional):</label>
+    <input type="text" id="mandatory_waypoint" placeholder="e.g., 'Eiffel Tower, Paris'">
 
-        <div id="mode-selector">
-            <input type="radio" id="mode-bike" name="travel-mode" value="BICYCLING" checked>
-            <label for="mode-bike"><i class="fa-solid fa-bicycle"></i> Bike</label>
-            
-            <input type="radio" id="mode-walk" name="travel-mode" value="WALKING">
-            <label for="mode-walk"><i class="fa-solid fa-person-walking"></i> By Foot</label>
-        </div>
-        
-        <button id="generateBtn">Generate Loop</button>
-        
-        <div id="status">Enter a starting point and distance, then click Generate.</div>
-        <a id="gmaps-link" href="#" target="_blank" style="display: none;">Open in Google Maps</a>
+    <label for="distance">Loop Distance (km):</label>
+    <input type="number" id="distance" value="20" min="1">
 
-        <div id="history">
-            <h3>Recent Routes</h3>
-            <ul id="history-list"></ul>
-        </div>
+    <div id="mode-selector">
+      <input type="radio" id="mode-bike" name="travel-mode" value="BICYCLING" checked>
+      <label for="mode-bike"><i class="fa-solid fa-bicycle"></i> Bike</label>
+
+      <input type="radio" id="mode-walk" name="travel-mode" value="WALKING">
+      <label for="mode-walk"><i class="fa-solid fa-person-walking"></i> By Foot</label>
     </div>
 
-    <div id="map"></div>
+    <button id="generateBtn">Generate Loop</button>
 
-    <div id="map-legend">
-        <span><i style="color:red" class="fa-solid fa-bicycle"></i> Bike</span> |
-        <span><i style="color:blue" class="fa-solid fa-person-walking"></i> Walk</span>
+    <div id="status">Enter a starting point and distance, then click Generate.</div>
+    <a id="gmaps-link" href="#" target="_blank" style="display: none;">Open in Google Maps</a>
+
+    <div id="history">
+      <h3>Recent Routes</h3>
+      <ul id="history-list"></ul>
     </div>
+  </div>
 
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').then(() => {
-                console.log('Service Worker registered');
-            });
-        }
-    </script>
-    <script src="script.js" defer></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&libraries=geometry,places,marker&callback=initializeApp" async></script>
+  <div id="map"></div>
+
+  <div id="map-legend">
+    <span><i style="color:red" class="fa-solid fa-bicycle"></i> Bike</span> |
+    <span><i style="color:blue" class="fa-solid fa-person-walking"></i> Walk</span>
+  </div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(() => {
+        console.log('Service Worker registered');
+      });
+    }
+  </script>
+  <script src="script.js" defer></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&libraries=geometry,places,marker&callback=initializeApp" async></script>
 </body>
 </html>
