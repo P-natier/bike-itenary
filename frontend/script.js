@@ -127,7 +127,7 @@ async function callBackendForLoop(startLocation) {
     const targetDistance = document.getElementById('distance').value;
     const mandatoryWaypoint = document.getElementById('mandatory_waypoint').value;
     const travelMode = document.querySelector('input[name="travel-mode"]:checked').value;
-    const routeColor = travelMode === 'WALKING' ? '#0000FF' : '#FF0000'; // Blue for walking, Red for bike
+    const routeColor = travelMode === 'WALKING' ? '#0000FF' : '#FF0000';
     
     const statusDiv = document.getElementById('status');
     const generateBtn = document.getElementById('generateBtn');
@@ -162,23 +162,30 @@ async function callBackendForLoop(startLocation) {
             gmapsLink.style.display = 'block';
         }
 
-        if (mapLegend) mapLegend.style.display = 'flex'; // Use flex for the new legend
+        if (mapLegend) mapLegend.style.display = 'flex';
 
-        // --- UPDATED: Use a Font Awesome icon for the start marker ---
+        // --- THE FIX IS HERE: Create a custom icon element for the marker ---
         const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
         const iconClass = travelMode === 'WALKING' ? 'fa-solid fa-person-walking' : 'fa-solid fa-bicycle';
+        
+        // 1. Create a new <i> element in JavaScript
         const markerIcon = document.createElement('i');
-        markerIcon.className = `${iconClass} fa-2x fa-map-marker`;
+        
+        // 2. Give it the correct Font Awesome classes and our helper class
+        markerIcon.className = `${iconClass} fa-2x fa-map-marker`; // fa-2x makes it bigger
+        
+        // 3. Set its color to match the route
         markerIcon.style.color = routeColor;
 
+        // 4. Create the marker and pass our custom element to the 'content' property
         startMarker = new AdvancedMarkerElement({
             map: map,
             position: startLocation,
             title: 'Start / Finish',
-            content: markerIcon,
+            content: markerIcon, // This replaces the default pin with our icon
         });
+        // --- END OF FIX ---
 
-        // Save the successful generation to history
         const addressText = document.getElementById('address').value.trim();
         saveToHistory({
             address: addressText || 'Current Location',
@@ -214,7 +221,6 @@ function drawRoute(encodedPolyline, strokeColor) {
 
 function saveToHistory(entry) {
     let history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
-    // Prevent duplicate entries
     history = history.filter(item => !(item.address === entry.address && item.distance === entry.distance && item.mode === entry.mode));
     history.unshift(entry);
     const trimmed = history.slice(0, 5);
@@ -226,12 +232,11 @@ function loadHistory() {
     const historyList = document.getElementById('history-list');
     const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
     
-    historyList.innerHTML = ''; // Clear the list before repopulating
+    historyList.innerHTML = '';
 
     history.forEach((item) => {
         const li = document.createElement('li');
         
-        // --- UPDATED: Use icons and colors in the history list ---
         const iconClass = item.mode === 'WALKING' ? 'fa-solid fa-person-walking' : 'fa-solid fa-bicycle';
         const color = item.mode === 'WALKING' ? 'blue' : 'red';
 
