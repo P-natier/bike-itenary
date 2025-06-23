@@ -46,8 +46,10 @@ document.addEventListener('DOMContentLoaded', () => {
         mapLegend = document.getElementById('map-legend');
         document.getElementById('generateBtn').addEventListener('click', generateLoop);
 
-        document.getElementById("toggle-button").addEventListener("click", () => {
-            document.getElementById("controls").classList.toggle("open");
+        const toggleButton = document.getElementById('logo-toggle-button'); // UPDATED ID
+        const controlsPanel = document.getElementById('controls');
+        toggleButton.addEventListener('click', () => {
+            controlsPanel.classList.toggle('open');
         });
 
         // Fullscreen mode logic
