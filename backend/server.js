@@ -129,34 +129,61 @@ app.post('/api/generate-loop', async (req, res) => {
     }
 
     try {
-        // Normalize the travel mode
-        const normalizedTravelMode = normalizeTransportMode(travelMode);
-        
-        let result;
+        let result; // This will hold our first draft { route, waypointsUsed }
+
+        // 2. Generate the initial geometric route (THE DRAFT)
         if (mandatoryWaypoint) {
-            console.log(`Generating loop with mandatory waypoint: "${mandatoryWaypoint}" for mode: ${normalizedTravelMode}`);
-            result = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint, normalizedTravelMode);
+            result = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint, travelMode);
         } else {
-            console.log(`Generating a random loop for mode: ${normalizedTravelMode}`);
-            result = await generateRandomLoop(startLocation, targetDistance, normalizedTravelMode);
+            result = await generateRandomLoop(startLocation, targetDistance, travelMode);
         }
 
         if (!result || !result.route) {
-            throw new Error("Could not generate a valid route.");
+            throw new Error("Could not generate a valid initial route.");
         }
-        
+
+        // --- NEW AI ENHANCEMENT STEP ---
+        // 3. Send the draft waypoints to the AI for improvement
+        const aiImprovedWaypoints = await getAiImprovedWaypoints(
+            startLocation,
+            result.waypointsUsed,
+            [], // For a real implementation, you'd find nearby places here
+            targetDistance,
+            travelMode
+        );
+
+        // 4. Get the FINAL route using the AI's suggested waypoints
+        const finalWaypointsString = aiImprovedWaypoints.map(wp => `${wp.lat},${wp.lng}`).join('|');
+        const finalDirectionsResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, {
+            params: {
+                origin: `${startLocation.lat},${startLocation.lng}`,
+                destination: `${startLocation.lat},${startLocation.lng}`,
+                waypoints: finalWaypointsString,
+                mode: travelMode,
+                key: API_KEY
+            }
+        });
+
+        const finalRoute = finalDirectionsResponse.data.routes[0];
+        if (!finalRoute) {
+            throw new Error("AI generated waypoints that could not be routed.");
+        }
+        // --- END OF AI ENHANCEMENT ---
+
+        // 5. Construct the response using the FINAL route data
         let googleMapsUrl = 'https://www.google.com/maps/dir/';
         const origin = `${startLocation.lat},${startLocation.lng}`;
         const destination = origin;
-        const waypointsString = result.waypointsUsed.map(wp => `${wp.lat},${wp.lng}`).join('/');
+        // Use the AI waypoints for the shareable link
+        const finalWaypointsForUrl = aiImprovedWaypoints.map(wp => `${wp.lat},${wp.lng}`).join('/');
         
-        const dirflg = normalizedTravelMode === 'walking' ? 'w' : 'b';
-        googleMapsUrl += `${origin}/${waypointsString}/${destination}?dirflg=${dirflg}`;
+        const dirflg = travelMode.toLowerCase() === 'walking' ? 'w' : 'b';
+        googleMapsUrl += `${origin}/${finalWaypointsForUrl}/${destination}?dirflg=${dirflg}`;
 
         res.json({
-            polyline: result.route.overview_polyline.points,
-            totalDistance: result.route.legs.reduce((total, leg) => total + leg.distance.value, 0),
-            totalDuration: result.route.legs.reduce((total, leg) => total + leg.duration.value, 0),
+            polyline: finalRoute.overview_polyline.points,
+            totalDistance: finalRoute.legs.reduce((total, leg) => total + leg.distance.value, 0),
+            totalDuration: finalRoute.legs.reduce((total, leg) => total + leg.duration.value, 0),
             googleMapsUrl: googleMapsUrl
         });
 
