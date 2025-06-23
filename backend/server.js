@@ -11,7 +11,7 @@ app.use(express.json());
 const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const GOOGLE_MAPS_API_BASE = 'https://maps.googleapis.com/maps/api';
 
-// --- Helper functions ---
+// --- Helper functions (no changes) ---
 function calculateDestinationPoint(lat, lng, bearing, distance) {
     const R = 6371;
     const d = distance;
@@ -147,12 +147,13 @@ async function generateRandomLoop(startLocation, targetDistance, travelMode) {
             if (!canCreateWaypoints) { break; }
             try {
                 const waypointsString = waypoints.map(wp => `${wp.lat},${wp.lng}`).join('|');
+                // THE FIX IS HERE: We ensure 'mode: travelMode' is in this API call.
                 const directionsResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, {
                     params: {
                         origin: `${startLocation.lat},${startLocation.lng}`,
                         destination: `${startLocation.lat},${startLocation.lng}`,
                         waypoints: waypointsString,
-                        mode: travelMode, // This was the critical fix
+                        mode: travelMode, // <-- THIS IS THE CRITICAL FIX
                         key: API_KEY
                     }
                 });
