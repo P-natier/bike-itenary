@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bike Loop Generator</title>
-    <!-- NEW: Add Font Awesome for icons -->
+    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
@@ -24,11 +24,9 @@
         
         <div id="mode-selector">
             <input type="radio" id="mode-bike" name="travel-mode" value="BICYCLING" checked>
-            <!-- UPDATED: Add icon to the label -->
             <label for="mode-bike"><i class="fa-solid fa-bicycle"></i> Bike</label>
             
             <input type="radio" id="mode-walk" name="travel-mode" value="WALKING">
-            <!-- UPDATED: Add icon to the label -->
             <label for="mode-walk"><i class="fa-solid fa-person-walking"></i> By Foot</label>
         </div>
         
@@ -37,14 +35,15 @@
         <div id="status">Enter a starting point and distance, then click Generate.</div>
         <a id="gmaps-link" href="#" target="_blank" style="display: none;">Open in Google Maps</a>
     </div>
-
-    <!-- This div will be used for our map legend, but we will create it in JS -->
+    
     <div id="map"></div>
 
+    <!-- The script loading order and attributes are crucial for stability -->
     <script>
+      // Define this function globally so Google's callback never fails
       function initializeApp() {}
     </script>
     <script src="script.js" defer></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&libraries=geometry,places&callback=initializeApp" async></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&libraries=geometry,places,marker&callback=initializeApp" async></script>
 </body>
 </html>
