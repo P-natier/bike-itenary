@@ -1,19 +1,14 @@
 {
   "name": "Bike Loop Generator",
-  "short_name": "Bike Loop",
+  "short_name": "BikeLoops",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#4285F4",
-  "description": "A simple app to generate bike loop itineraries.",
+  "theme_color": "#2e6ff2",
+  "description": "Generate looped itineraries for bike or foot from your location.",
   "icons": [
     {
-      "src": "icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "icon-512.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/1140/1140497.png",
       "sizes": "512x512",
       "type": "image/png"
     }
