@@ -24,14 +24,23 @@ body, html {
     max-width: 90%;
 }
 
+#controls label {
+    display: block;
+    margin-top: 10px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
 #controls input[type="text"], #controls input[type="number"] {
-    width: 150px;
-    padding: 5px;
-    margin: 5px 10px;
+    width: 220px;
+    padding: 8px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
 }
 
 #controls button {
-    padding: 8px 12px;
+    padding: 10px 15px;
     background-color: #4285F4;
     color: white;
     border: none;
@@ -39,7 +48,8 @@ body, html {
     cursor: pointer;
     display: block;
     width: 100%;
-    margin-top: 10px;
+    margin-top: 15px;
+    font-size: 1em;
 }
 
 #controls button:hover {
@@ -52,12 +62,33 @@ body, html {
     color: #333;
 }
 
-/* NEW: Style for the Google Maps link */
+#mode-selector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+}
+
+#mode-selector label {
+    margin: 0 10px 0 3px;
+    cursor: pointer;
+    font-weight: normal;
+}
+
+#mode-selector i {
+    margin-right: 5px;
+    width: 20px;
+    text-align: center;
+}
+
 #gmaps-link {
-    display: block; /* Will be overridden by inline style initially */
+    display: block;
     margin-top: 15px;
     padding: 8px 12px;
-    background-color: #34A853; /* Google's green */
+    background-color: #34A853;
     color: white;
     text-decoration: none;
     border-radius: 4px;
@@ -68,12 +99,6 @@ body, html {
     background-color: #2c9048;
 }
 
-#mode-selector i {
-    margin-right: 5px; /* Add space between icon and text */
-    width: 20px;       /* Align the text nicely */
-    text-align: center;
-}
-
 #map-legend {
     background-color: #fff;
     padding: 10px;
@@ -82,11 +107,11 @@ body, html {
     border-radius: 4px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     font-size: 14px;
-    display: none; /* Hidden by default */
+    display: none;
 }
 
 #map-legend i {
-    color: #FF0000; /* Match the route color */
+    color: #FF0000;
     font-size: 20px;
     margin-right: 8px;
     vertical-align: middle;
