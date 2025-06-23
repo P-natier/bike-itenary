@@ -1,4 +1,40 @@
-// Add this helper function at the top of your server.js file, after the existing helper functions
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const axios = require('axios');
+const path = require('path');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+const GOOGLE_MAPS_API_BASE = 'https://maps.googleapis.com/maps/api';
+
+// --- Helper functions ---
+function calculateDestinationPoint(lat, lng, bearing, distance) {
+    const R = 6371;
+    const d = distance;
+    const lat1 = (lat * Math.PI) / 180;
+    const lon1 = (lng * Math.PI) / 180;
+    const brng = (bearing * Math.PI) / 180;
+    let lat2 = Math.asin(Math.sin(lat1) * Math.cos(d / R) + Math.cos(lat1) * Math.sin(d / R) * Math.cos(brng));
+    let lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d / R) * Math.cos(lat1), Math.cos(d / R) - Math.sin(lat1) * Math.sin(lat2));
+    lat2 = (lat2 * 180) / Math.PI;
+    lon2 = (lon2 * 180) / Math.PI;
+    return { lat: lat2, lng: lon2 };
+}
+
+function getBearing(startPoint, endPoint) {
+    const lat1 = (startPoint.lat * Math.PI) / 180;
+    const lon1 = (startPoint.lng * Math.PI) / 180;
+    const lat2 = (endPoint.lat * Math.PI) / 180;
+    const lon2 = (endPoint.lng * Math.PI) / 180;
+    const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
+    const brng = Math.atan2(y, x);
+    return ((brng * 180) / Math.PI + 360) % 360;
+}
 
 function normalizeTransportMode(mode) {
     // Convert frontend mode values to Google Maps API expected values
@@ -11,7 +47,53 @@ function normalizeTransportMode(mode) {
     return modeMap[mode] || 'bicycling'; // default to bicycling if unknown
 }
 
-// Updated function signatures to ensure consistent parameter naming
+// --- Main API Endpoint ---
+app.post('/api/generate-loop', async (req, res) => {
+    const { startLocation, targetDistance, mandatoryWaypoint, travelMode = 'bicycling' } = req.body;
+
+    if (!startLocation || !targetDistance) {
+        return res.status(400).json({ error: 'Missing startLocation or targetDistance' });
+    }
+
+    try {
+        // Normalize the travel mode
+        const normalizedTravelMode = normalizeTransportMode(travelMode);
+        
+        let result;
+        if (mandatoryWaypoint) {
+            console.log(`Generating loop with mandatory waypoint: "${mandatoryWaypoint}" for mode: ${normalizedTravelMode}`);
+            result = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint, normalizedTravelMode);
+        } else {
+            console.log(`Generating a random loop for mode: ${normalizedTravelMode}`);
+            result = await generateRandomLoop(startLocation, targetDistance, normalizedTravelMode);
+        }
+
+        if (!result || !result.route) {
+            throw new Error("Could not generate a valid route.");
+        }
+        
+        let googleMapsUrl = 'https://www.google.com/maps/dir/';
+        const origin = `${startLocation.lat},${startLocation.lng}`;
+        const destination = origin;
+        const waypointsString = result.waypointsUsed.map(wp => `${wp.lat},${wp.lng}`).join('/');
+        
+        const dirflg = normalizedTravelMode === 'walking' ? 'w' : 'b';
+        googleMapsUrl += `${origin}/${waypointsString}/${destination}?dirflg=${dirflg}`;
+
+        res.json({
+            polyline: result.route.overview_polyline.points,
+            totalDistance: result.route.legs.reduce((total, leg) => total + leg.distance.value, 0),
+            totalDuration: result.route.legs.reduce((total, leg) => total + leg.duration.value, 0),
+            googleMapsUrl: googleMapsUrl
+        });
+
+    } catch (error) {
+        console.error("Error in main handler:", error.message);
+        res.status(500).json({ error: 'Failed to generate loop itinerary.', details: error.message });
+    }
+});
+
+// --- Function to handle loops with a mandatory stop ---
 async function generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypointAddress, normalizedTravelMode) {
     const geoResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/geocode/json`, { params: { address: mandatoryWaypointAddress, key: API_KEY } });
     if (!geoResponse.data.results || geoResponse.data.results.length === 0) { throw new Error(`Could not find location for: "${mandatoryWaypointAddress}"`); }
@@ -46,6 +128,7 @@ async function generateLoopWithWaypoint(startLocation, targetDistance, mandatory
     return { route: finalRouteResponse.data.routes[0], waypointsUsed: [theoreticalDetour1, mandatoryPoint, theoreticalDetour2] };
 }
 
+// --- Function for random loops ---
 async function generateRandomLoop(startLocation, targetDistance, normalizedTravelMode) {
     const MAIN_ATTEMPTS = 10;
     const REFINE_ITERATIONS = 3;
@@ -109,48 +192,7 @@ async function generateRandomLoop(startLocation, targetDistance, normalizedTrave
     };
 }
 
-// Then update your main API endpoint to use this function:
-app.post('/api/generate-loop', async (req, res) => {
-    const { startLocation, targetDistance, mandatoryWaypoint, travelMode = 'bicycling' } = req.body;
-
-    if (!startLocation || !targetDistance) {
-        return res.status(400).json({ error: 'Missing startLocation or targetDistance' });
-    }
-
-    try {
-        // Normalize the travel mode
-        const normalizedTravelMode = normalizeTransportMode(travelMode);
-        
-        let result;
-        if (mandatoryWaypoint) {
-            console.log(`Generating loop with mandatory waypoint: "${mandatoryWaypoint}" for mode: ${normalizedTravelMode}`);
-            result = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint, normalizedTravelMode);
-        } else {
-            console.log(`Generating a random loop for mode: ${normalizedTravelMode}`);
-            result = await generateRandomLoop(startLocation, targetDistance, normalizedTravelMode);
-        }
-
-        if (!result || !result.route) {
-            throw new Error("Could not generate a valid route.");
-        }
-        
-        let googleMapsUrl = 'https://www.google.com/maps/dir/';
-        const origin = `${startLocation.lat},${startLocation.lng}`;
-        const destination = origin;
-        const waypointsString = result.waypointsUsed.map(wp => `${wp.lat},${wp.lng}`).join('/');
-        
-        const dirflg = normalizedTravelMode === 'walking' ? 'w' : 'b';
-        googleMapsUrl += `${origin}/${waypointsString}/${destination}?dirflg=${dirflg}`;
-
-        res.json({
-            polyline: result.route.overview_polyline.points,
-            totalDistance: result.route.legs.reduce((total, leg) => total + leg.distance.value, 0),
-            totalDuration: result.route.legs.reduce((total, leg) => total + leg.duration.value, 0),
-            googleMapsUrl: googleMapsUrl
-        });
-
-    } catch (error) {
-        console.error("Error in main handler:", error.message);
-        res.status(500).json({ error: 'Failed to generate loop itinerary.', details: error.message });
-    }
+const PORT = 3000;
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
 });
