@@ -1,20 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Bike Loop Generator</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="style.css">
-  <link rel="manifest" href="manifest.json">
-</head>
+<!-- ... -->
 <body>
-  <button id="toggle-button"><i class="fa-solid fa-bars"></i></button>
-  <button id="fullscreen-map-btn" title="Full screen map">🗖</button>
-  <button id="exit-fullscreen-map-btn" title="Exit full screen">✖</button>
-
   <div id="controls" class="open">
-    <h1>Bike Loop Generator</h1>
+    <div id="header">
+      <button id="toggle-button"><i class="fa-solid fa-bars"></i></button>
+      <h1>Bike Loop Generator</h1>
+    </div>
 
     <label for="address">Starting Address:</label>
     <input type="text" id="address" placeholder="Type an address or leave blank">
@@ -44,8 +34,9 @@
     </div>
   </div>
 
+  <button id="fullscreen-map-btn" title="Full screen map">🗖</button>
+  <button id="exit-fullscreen-map-btn" title="Exit full screen">✖</button>
   <div id="map"></div>
-
   <div id="map-legend">
     <span><i style="color:red" class="fa-solid fa-bicycle"></i> Bike</span> |
     <span><i style="color:blue" class="fa-solid fa-person-walking"></i> Walk</span>
