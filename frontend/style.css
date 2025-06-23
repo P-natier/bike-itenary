@@ -68,14 +68,26 @@ body, html {
     background-color: #2c9048;
 }
 
-#mode-selector {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-top: 10px;
+#mode-selector i {
+    margin-right: 5px; /* Add space between icon and text */
+    width: 20px;       /* Align the text nicely */
+    text-align: center;
 }
 
-#mode-selector label {
-    margin: 0 10px 0 3px;
-    cursor: pointer;
+#map-legend {
+    background-color: #fff;
+    padding: 10px;
+    margin: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    font-size: 14px;
+    display: none; /* Hidden by default */
+}
+
+#map-legend i {
+    color: #FF0000; /* Match the route color */
+    font-size: 20px;
+    margin-right: 8px;
+    vertical-align: middle;
 }
