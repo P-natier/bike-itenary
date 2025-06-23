@@ -9,10 +9,10 @@
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
-    <!-- NEW: Toggle button for the sidebar -->
     <button id="toggle-button"><i class="fa-solid fa-bars"></i></button>
+    <button id="fullscreen-map-btn" title="Full screen map">🗖</button>
+    <button id="exit-fullscreen-map-btn" title="Exit full screen">✖</button>
 
-    <!-- This is our control panel which will now act as a sidebar -->
     <div id="controls">
         <h1>Bike Loop Generator</h1>
         
@@ -24,7 +24,12 @@
 
         <label for="distance">Loop Distance (km):</label>
         <input type="number" id="distance" value="20" min="1">
-        
+
+        <div>
+            <input type="checkbox" id="isLoop" checked>
+            <label for="isLoop">Return to start (loop)</label>
+        </div>
+
         <div id="mode-selector">
             <input type="radio" id="mode-bike" name="travel-mode" value="BICYCLING" checked>
             <label for="mode-bike"><i class="fa-solid fa-bicycle"></i> Bike</label>
@@ -37,12 +42,26 @@
         
         <div id="status">Enter a starting point and distance, then click Generate.</div>
         <a id="gmaps-link" href="#" target="_blank" style="display: none;">Open in Google Maps</a>
+
+        <div id="history">
+            <h3>Recent Routes</h3>
+            <ul id="history-list"></ul>
+        </div>
     </div>
-    
+
     <div id="map"></div>
 
+    <div id="map-legend">
+        <span><i style="color:red" class="fa-solid fa-bicycle"></i> Bike</span> |
+        <span><i style="color:blue" class="fa-solid fa-person-walking"></i> Walk</span>
+    </div>
+
     <script>
-      function initializeApp() {}
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(() => {
+                console.log('Service Worker registered');
+            });
+        }
     </script>
     <script src="script.js" defer></script>
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB7sFp3lqbNthsOgpUixNag4Ulzq8VUMuc&libraries=geometry,places,marker&callback=initializeApp" async></script>
