@@ -34,55 +34,6 @@ const openai = new OpenAI({
 });
 
 // A new function to get AI-improved waypoints
-async function getAiImprovedWaypoints(startLocation, initialWaypoints, nearbyPlaces, targetDistance, travelMode) {
-    // 1. Construct the detailed prompt
-    const waypointsText = JSON.stringify(initialWaypoints);
-    const placesText = nearbyPlaces.map(p => p.name).join(', ');
-
-    const prompt = `
-        You are an expert local tour guide and route planner for cyclists.
-        Your task is to improve a pre-calculated route by modifying its waypoints.
-        
-        Start Location: ${JSON.stringify(startLocation)}
-        Target Distance: ${targetDistance} km
-        Travel Mode: ${travelMode}
-        Draft Waypoints: ${waypointsText}
-        Nearby Interesting Places: ${placesText}
-
-        Please modify the draft waypoints to create a more enjoyable and varied itinerary.
-        Prioritize bike lanes, greenways, and scenic paths. Avoid out-and-back segments.
-        If possible, include one or two of the interesting places from the provided list.
-        The final route should still be a loop starting and ending at the start location.
-
-        You MUST respond ONLY with a valid JSON object in the following format:
-        {"waypoints": [{"lat": 45.123, "lng": 1.456}, ...]}
-    `;
-
-    try {
-        console.log("Calling OpenAI to improve route...");
-        const completion = await openai.chat.completions.create({
-            model: "gpt-4o", // Or another suitable model
-            messages: [{ "role": "user", "content": prompt }],
-            response_format: { "type": "json_object" }, // This is crucial!
-        });
-
-        const aiResponse = completion.choices[0].message.content;
-        const parsedJson = JSON.parse(aiResponse);
-
-        // 2. Validate the response
-        if (parsedJson && Array.isArray(parsedJson.waypoints)) {
-            console.log("Successfully got improved waypoints from AI.");
-            return parsedJson.waypoints; // Return the new waypoints
-        } else {
-            throw new Error("AI response was not in the expected format.");
-        }
-
-    } catch (error) {
-        console.error("OpenAI call failed:", error.message);
-        console.log("Falling back to original geometric waypoints.");
-        return initialWaypoints; // 3. Fallback on error
-    }
-}
 
 // --- Helper functions ---
 function calculateDestinationPoint(lat, lng, bearing, distance) {
@@ -129,61 +80,31 @@ app.post('/api/generate-loop', async (req, res) => {
     }
 
     try {
-        let result; // This will hold our first draft { route, waypointsUsed }
-
-        // 2. Generate the initial geometric route (THE DRAFT)
+        let result;
         if (mandatoryWaypoint) {
+            console.log(`Generating loop with mandatory waypoint: "${mandatoryWaypoint}" for mode: ${travelMode}`);
             result = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint, travelMode);
         } else {
+            console.log(`Generating a random loop for mode: ${travelMode}`);
             result = await generateRandomLoop(startLocation, targetDistance, travelMode);
         }
 
         if (!result || !result.route) {
-            throw new Error("Could not generate a valid initial route.");
+            throw new Error("Could not generate a valid route.");
         }
-
-        // --- NEW AI ENHANCEMENT STEP ---
-        // 3. Send the draft waypoints to the AI for improvement
-        const aiImprovedWaypoints = await getAiImprovedWaypoints(
-            startLocation,
-            result.waypointsUsed,
-            [], // For a real implementation, you'd find nearby places here
-            targetDistance,
-            travelMode
-        );
-
-        // 4. Get the FINAL route using the AI's suggested waypoints
-        const finalWaypointsString = aiImprovedWaypoints.map(wp => `${wp.lat},${wp.lng}`).join('|');
-        const finalDirectionsResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, {
-            params: {
-                origin: `${startLocation.lat},${startLocation.lng}`,
-                destination: `${startLocation.lat},${startLocation.lng}`,
-                waypoints: finalWaypointsString,
-                mode: travelMode,
-                key: API_KEY
-            }
-        });
-
-        const finalRoute = finalDirectionsResponse.data.routes[0];
-        if (!finalRoute) {
-            throw new Error("AI generated waypoints that could not be routed.");
-        }
-        // --- END OF AI ENHANCEMENT ---
-
-        // 5. Construct the response using the FINAL route data
+        
         let googleMapsUrl = 'https://www.google.com/maps/dir/';
         const origin = `${startLocation.lat},${startLocation.lng}`;
         const destination = origin;
-        // Use the AI waypoints for the shareable link
-        const finalWaypointsForUrl = aiImprovedWaypoints.map(wp => `${wp.lat},${wp.lng}`).join('/');
+        const waypointsString = result.waypointsUsed.map(wp => `${wp.lat},${wp.lng}`).join('/');
         
         const dirflg = travelMode.toLowerCase() === 'walking' ? 'w' : 'b';
-        googleMapsUrl += `${origin}/${finalWaypointsForUrl}/${destination}?dirflg=${dirflg}`;
+        googleMapsUrl += `${origin}/${waypointsString}/${destination}?dirflg=${dirflg}`;
 
         res.json({
-            polyline: finalRoute.overview_polyline.points,
-            totalDistance: finalRoute.legs.reduce((total, leg) => total + leg.distance.value, 0),
-            totalDuration: finalRoute.legs.reduce((total, leg) => total + leg.duration.value, 0),
+            polyline: result.route.overview_polyline.points,
+            totalDistance: result.route.legs.reduce((total, leg) => total + leg.distance.value, 0),
+            totalDuration: result.route.legs.reduce((total, leg) => total + leg.duration.value, 0),
             googleMapsUrl: googleMapsUrl
         });
 
@@ -192,6 +113,7 @@ app.post('/api/generate-loop', async (req, res) => {
         res.status(500).json({ error: 'Failed to generate loop itinerary.', details: error.message });
     }
 });
+
 
 // --- Function to handle loops with a mandatory stop ---
 async function generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypointAddress, normalizedTravelMode) {
