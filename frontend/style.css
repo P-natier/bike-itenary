@@ -1,187 +1,198 @@
-/* Base */
 body, html {
-  margin: 0;
-  padding: 0;
-  font-family: sans-serif;
-  height: 100%;
-  overflow: hidden;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
 }
 
 #map {
-  height: 100%;
-  width: 100%;
-  position: absolute;
-  top: 0;
-  left: 0;
+    height: 100%;
+    width: 100%;
 }
 
-/* Controls panel */
+/* --- Sidebar Styles --- */
 #controls {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 320px;
-  max-width: 90vw;
-  height: 100%;
-  background: white;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-  z-index: 10;
-  padding: 1rem;
-  box-sizing: border-box;
-  overflow-y: auto;
-  transform: translateX(-100%);
-  transition: transform 0.3s ease;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 320px;
+    max-width: 90%;
+    background: white;
+    z-index: 10;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
 }
-
 #controls.open {
-  transform: translateX(0);
+    transform: translateX(0);
 }
 
-#controls h1 {
-  font-size: 1.5rem;
-  margin: 0 0 1.2rem;
-  line-height: 1.1;
-}
-
-/* Toggle button (menu) */
+/* --- Toggle Button --- */
 #toggle-button {
-  position: absolute;
-  top: 1rem;
-  left: 1rem;
-  z-index: 20;
-  background: #2e6ff2;
-  border: none;
-  color: white;
-  font-size: 1.2rem;
-  padding: 0.6rem 0.8rem;
-  border-radius: 6px;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  width: auto;
-  height: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 11;
+    background-color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+}
+#toggle-button:hover {
+    background-color: #f0f0f0;
 }
 
-#toggle-button i {
-  margin: 0;
-  font-size: 1.2rem;
-}
-
-
-/* Inputs & buttons */
-input[type="text"],
-input[type="number"] {
-  width: 100%;
-  padding: 0.4rem;
-  margin-bottom: 0.8rem;
-  box-sizing: border-box;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-}
-
-button {
-  width: 100%;
-  padding: 0.6rem;
-  margin-top: 0.8rem;
-  border-radius: 4px;
-  border: none;
-  cursor: pointer;
-}
-
-#generateBtn {
-  background-color: #2e6ff2;
-  color: white;
-  font-weight: bold;
-}
-
-#generateBtn:hover {
-  background-color: #1c53ca;
-}
-
-#gmaps-link {
-  display: inline-block;
-  margin-top: 1rem;
-  background: #00aa44;
-  color: white;
-  padding: 0.6rem;
-  text-align: center;
-  text-decoration: none;
-  font-weight: bold;
-  border-radius: 4px;
-}
-
-/* Mode selector */
-#mode-selector {
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-  margin-bottom: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 0.5rem;
-}
-
-#mode-selector label {
-  cursor: pointer;
-}
-
-/* Status */
-#status {
-  margin-top: 1rem;
-}
-
-/* History */
-#history {
-  margin-top: 1.5rem;
-}
-
-#history h3 {
-  margin-bottom: 0.5rem;
-}
-
-#history-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-#history-list li {
-  margin-bottom: 0.5rem;
-  font-size: 0.95rem;
-}
-
-#history-list li i {
-  margin-right: 0.5rem;
-  color: #2e6ff2;
-}
-
-#history-list a {
-  text-decoration: none;
-  color: #2e6ff2;
-}
-
-#history-list a:hover {
-  text-decoration: underline;
-}
-
-/* Fullscreen buttons */
+/* --- Fullscreen Map Buttons --- */
 #fullscreen-map-btn,
 #exit-fullscreen-map-btn {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  background: white;
-  border: none;
-  font-size: 1rem;
-  padding: 0.5rem;
-  z-index: 15;
-  cursor: pointer;
-  box-shadow: 0 0 4px rgba(0,0,0,0.2);
-  display: none;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    z-index: 11;
+    background-color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+    display: none;
+}
+#fullscreen-map-btn {
+    display: block;
+}
+#fullscreen-map-btn:hover,
+#exit-fullscreen-map-btn:hover {
+    background-color: #f0f0f0;
 }
 
-#exit-fullscreen-map-btn {
-  right: 3rem;
+/* --- Input & Buttons --- */
+#controls label {
+    display: block;
+    margin-top: 15px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+#controls input[type="text"],
+#controls input[type="number"] {
+    width: 100%;
+    padding: 8px;
+    margin-top: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+#controls button {
+    padding: 10px 15px;
+    background-color: #4285F4;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: block;
+    width: 100%;
+    margin-top: 15px;
+    font-size: 1em;
+}
+#controls button:hover {
+    background-color: #357ae8;
+}
+#status {
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: #333;
+}
+
+/* --- Mode Selector --- */
+#mode-selector {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-top: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 8px 5px;
+}
+#mode-selector label {
+    margin: 0;
+    cursor: pointer;
+    font-weight: normal;
+}
+#mode-selector i {
+    margin-right: 5px;
+    width: 20px;
+    text-align: center;
+}
+
+/* --- Google Maps link --- */
+#gmaps-link {
+    display: block;
+    margin-top: 15px;
+    padding: 8px 12px;
+    background-color: #34A853;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    font-weight: bold;
+}
+#gmaps-link:hover {
+    background-color: #2c9048;
+}
+
+/* --- Map Legend --- */
+#map-legend {
+    background-color: #fff;
+    padding: 10px;
+    margin: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    font-size: 14px;
+    z-index: 10;
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+#map-legend i {
+    font-size: 20px;
+    margin-right: 4px;
+}
+
+/* --- History --- */
+#history {
+    margin-top: 30px;
+    border-top: 1px solid #eee;
+    padding-top: 10px;
+}
+#history h3 {
+    margin: 0 0 10px 0;
+    font-size: 1em;
+}
+#history-list {
+    list-style: none;
+    padding-left: 0;
+    font-size: 0.9em;
+}
+#history-list li {
+    margin-bottom: 6px;
+    cursor: pointer;
+    color: #1a73e8;
+}
+#history-list li:hover {
+    text-decoration: underline;
 }
