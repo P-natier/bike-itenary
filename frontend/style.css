@@ -3,6 +3,7 @@ body, html {
     margin: 0;
     padding: 0;
     font-family: Arial, sans-serif;
+    overflow: hidden; /* Prevent body from scrolling */
 }
 
 #map {
@@ -10,33 +11,70 @@ body, html {
     width: 100%;
 }
 
+/* --- NEW: Sidebar Styles --- */
 #controls {
     position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 5;
-    background: white;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    text-align: center;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 320px;
     max-width: 90%;
+    background: white;
+    z-index: 10;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    padding: 20px;
+    box-sizing: border-box; /* Important for padding */
+    overflow-y: auto; /* Allow scrolling within the panel */
+    
+    /* Start hidden off-screen to the left */
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
 }
 
+/* This class will be added by JS to show the sidebar */
+#controls.open {
+    transform: translateX(0);
+}
+
+/* --- NEW: Toggle Button Styles --- */
+#toggle-button {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 11; /* On top of the sidebar */
+    background-color: white;
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 16px;
+}
+
+#toggle-button:hover {
+    background-color: #f0f0f0;
+}
+
+
+/* --- Styles for elements inside the sidebar --- */
 #controls label {
     display: block;
-    margin-top: 10px;
+    margin-top: 15px;
     font-weight: bold;
     font-size: 0.9em;
 }
 
 #controls input[type="text"], #controls input[type="number"] {
-    width: 220px;
+    width: 100%;
     padding: 8px;
     margin-top: 5px;
     border: 1px solid #ccc;
     border-radius: 4px;
+    box-sizing: border-box;
 }
 
 #controls button {
@@ -64,16 +102,16 @@ body, html {
 
 #mode-selector {
     display: flex;
-    justify-content: center;
+    justify-content: space-around;
     align-items: center;
     margin-top: 15px;
     border: 1px solid #ccc;
     border-radius: 4px;
-    padding: 5px;
+    padding: 8px 5px;
 }
 
 #mode-selector label {
-    margin: 0 10px 0 3px;
+    margin: 0;
     cursor: pointer;
     font-weight: normal;
 }
@@ -111,7 +149,6 @@ body, html {
 }
 
 #map-legend i {
-    color: #FF0000;
     font-size: 20px;
     margin-right: 8px;
     vertical-align: middle;
