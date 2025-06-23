@@ -9,11 +9,12 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Bouton TOGGLE indépendant (hors panneau) -->
+  <button id="toggle-button"><i class="fa-solid fa-bars"></i></button>
+
+  <!-- Panneau latéral (rétractable) -->
   <div id="controls" class="open">
-    <div id="header">
-      <button id="toggle-button"><i class="fa-solid fa-bars"></i></button>
-      <h1>Bike Loop Generator</h1>
-    </div>
+    <h1>Bike Loop Generator</h1>
 
     <label for="address">Starting Address:</label>
     <input type="text" id="address" placeholder="Type an address or leave blank">
