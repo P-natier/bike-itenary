@@ -32,17 +32,25 @@ body, html {
     transform: translateX(0);
 }
 
+/* --- Header Flex Layout --- */
+#header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+#header h1 {
+    font-size: 1.3em;
+    margin: 0 0 0 10px;
+    flex: 1;
+}
+
 /* --- Toggle Button --- */
 #toggle-button {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    z-index: 11;
     background-color: white;
     border: none;
     border-radius: 50%;
-    width: 40px;
-    height: 40px;
+    width: 36px;
+    height: 36px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     cursor: pointer;
     display: flex;
@@ -78,7 +86,7 @@ body, html {
     background-color: #f0f0f0;
 }
 
-/* --- Input & Buttons --- */
+/* --- Inputs & Buttons --- */
 #controls label {
     display: block;
     margin-top: 15px;
@@ -136,7 +144,7 @@ body, html {
     text-align: center;
 }
 
-/* --- Google Maps link --- */
+/* --- Google Maps Link --- */
 #gmaps-link {
     display: block;
     margin-top: 15px;
@@ -192,6 +200,12 @@ body, html {
     margin-bottom: 6px;
     cursor: pointer;
     color: #1a73e8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#history-list li i {
+    font-size: 14px;
 }
 #history-list li:hover {
     text-decoration: underline;
