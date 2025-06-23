@@ -21,19 +21,32 @@ initializeApp = async () => {
         mapId: 'BIKE_LOOP_GENERATOR_MAP'
     });
 
-    mapLegend = document.createElement('div');
-    mapLegend.id = 'map-legend';
-    map.controls[google.maps.ControlPosition.RIGHT_BOTTOM].push(mapLegend);
+    mapLegend = document.getElementById('map-legend');
 
     geocoder = new Geocoder();
     document.getElementById('generateBtn').addEventListener('click', generateLoop);
 
-    // Toggle sidebar
-    const toggleBtn = document.getElementById("toggle-button");
-    const controls = document.getElementById("controls");
-    toggleBtn.addEventListener("click", () => {
-        controls.classList.toggle("open");
+    // Sidebar toggle
+    document.getElementById("toggle-button").addEventListener("click", () => {
+        document.getElementById("controls").classList.toggle("open");
     });
+
+    // Fullscreen mode
+    const fullscreenBtn = document.getElementById("fullscreen-map-btn");
+    const exitFullscreenBtn = document.getElementById("exit-fullscreen-map-btn");
+
+    fullscreenBtn.addEventListener("click", () => {
+        document.getElementById("controls").style.display = "none";
+        fullscreenBtn.style.display = "none";
+        exitFullscreenBtn.style.display = "block";
+    });
+    exitFullscreenBtn.addEventListener("click", () => {
+        document.getElementById("controls").style.display = "block";
+        fullscreenBtn.style.display = "block";
+        exitFullscreenBtn.style.display = "none";
+    });
+
+    loadHistory();
 };
 
 function generateLoop() {
@@ -106,7 +119,8 @@ async function callBackendForLoop(startLocation) {
     const targetDistance = document.getElementById('distance').value;
     const mandatoryWaypoint = document.getElementById('mandatory_waypoint').value;
     const travelMode = document.querySelector('input[name="travel-mode"]:checked').value;
-    
+    const isLoop = document.getElementById('isLoop').checked;
+
     const statusDiv = document.getElementById('status');
     const generateBtn = document.getElementById('generateBtn');
     const controller = new AbortController();
@@ -120,7 +134,8 @@ async function callBackendForLoop(startLocation) {
                 startLocation,
                 targetDistance: parseFloat(targetDistance),
                 mandatoryWaypoint: mandatoryWaypoint.trim() === "" ? null : mandatoryWaypoint,
-                travelMode: travelMode,
+                travelMode,
+                isLoop
             }),
             signal: controller.signal
         });
@@ -134,7 +149,7 @@ async function callBackendForLoop(startLocation) {
 
         const distanceInKm = (data.totalDistance / 1000).toFixed(2);
         const durationInMinutes = Math.round(data.totalDuration / 60);
-        statusDiv.innerHTML = `Generated a <b>${distanceInKm} km</b> loop.<br>Estimated time: <b>${durationInMinutes} minutes</b>.`;
+        statusDiv.innerHTML = `Generated a <b>${distanceInKm} km</b> ${isLoop ? 'loop' : 'route'}.<br>Estimated time: <b>${durationInMinutes} minutes</b>.`;
 
         const gmapsLink = document.getElementById('gmaps-link');
         if (data.googleMapsUrl) {
@@ -142,15 +157,21 @@ async function callBackendForLoop(startLocation) {
             gmapsLink.style.display = 'block';
         }
 
-        const iconClass = travelMode === 'WALKING' ? 'fa-solid fa-person-walking' : 'fa-solid fa-bicycle';
-        mapLegend.innerHTML = `<i class="${iconClass}"></i> Loop: ${distanceInKm} km`;
-        mapLegend.style.display = 'block';
+        mapLegend.style.display = 'flex';
 
         const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
         startMarker = new AdvancedMarkerElement({
             map: map,
             position: startLocation,
             title: 'Start / Finish',
+        });
+
+        // Save to history
+        saveToHistory({
+            address: document.getElementById('address').value || 'Current location',
+            distance: targetDistance,
+            mode: travelMode,
+            isLoop
         });
 
     } catch (error) {
@@ -163,7 +184,7 @@ async function callBackendForLoop(startLocation) {
 
 function drawRoute(encodedPolyline, travelMode) {
     const path = google.maps.geometry.encoding.decodePath(encodedPolyline);
-    const strokeColor = travelMode === 'WALKING' ? '#0000FF' : '#FF0000'; // blue for walking, red for bike
+    const strokeColor = travelMode === 'WALKING' ? '#0000FF' : '#FF0000';
     const routePolyline = new google.maps.Polyline({
         path: path,
         geodesic: true,
@@ -177,4 +198,30 @@ function drawRoute(encodedPolyline, travelMode) {
     const bounds = new google.maps.LatLngBounds();
     path.forEach(point => bounds.extend(point));
     map.fitBounds(bounds);
+}
+
+function saveToHistory(entry) {
+    const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
+    history.unshift(entry);
+    const trimmed = history.slice(0, 5);
+    localStorage.setItem('loopHistory', JSON.stringify(trimmed));
+    loadHistory();
+}
+
+function loadHistory() {
+    const historyList = document.getElementById('history-list');
+    historyList.innerHTML = '';
+    const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
+    history.forEach((item, idx) => {
+        const li = document.createElement('li');
+        const label = `${item.address} — ${item.distance}km — ${item.mode.toLowerCase()} ${item.isLoop ? '🔁' : '➡'}`;
+        li.textContent = label;
+        li.addEventListener('click', () => {
+            document.getElementById('address').value = item.address === 'Current location' ? '' : item.address;
+            document.getElementById('distance').value = item.distance;
+            document.querySelector(`input[name="travel-mode"][value="${item.mode}"]`).checked = true;
+            document.getElementById('isLoop').checked = item.isLoop;
+        });
+        historyList.appendChild(li);
+    });
 }
