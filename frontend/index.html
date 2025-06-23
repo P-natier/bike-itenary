@@ -22,15 +22,21 @@
     <!-- --- END OF NEW CODE --- -->
 </head>
 <body>
-  <button id="toggle-button"><i class="fa-solid fa-bars"></i></button>
-  <button id="fullscreen-map-btn" title="Full screen map">🗖</button>
-  <button id="exit-fullscreen-map-btn" title="Exit full screen">✖</button>
+    <!-- The #controls div is now the main container for the sidebar -->
+    <div id="controls" class="open"> <!-- Start with it open by default -->
+        <!-- NEW: Sidebar Header -->
+        <div class="sidebar-header">
+            <!-- 1. Add your logo image -->
+            <img src="icon-192.png" alt="PathCycle Logo" class="logo">
+            <!-- 2. The title -->
+            <h2>PathCycle</h2>
+            <!-- 3. The toggle button is now inside -->
+            <button id="toggle-button"><i class="fa-solid fa-bars"></i></button>
+        </div>
 
-  <div id="controls">
-    <h1>PathCycle</h1>
-
-    <label for="address">Starting Address:</label>
-    <input type="text" id="address" placeholder="Type an address or leave blank">
+        <!-- The rest of the form controls -->
+        <label for="address">Starting Address:</label>
+        <input type="text" id="address" placeholder="Type an address or leave blank">
 
     <label for="mandatory_waypoint">Include this point (optional):</label>
     <input type="text" id="mandatory_waypoint" placeholder="e.g., 'Eiffel Tower, Paris'">
