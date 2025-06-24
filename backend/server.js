@@ -96,7 +96,11 @@ async function getAiImprovedWaypoints(startLocation, initialWaypoints, targetDis
 
 // --- Main API Endpoint ---
 app.post('/api/generate-loop', async (req, res) => {
-    const { startLocation, targetDistance, mandatoryWaypoint, travelMode = 'bicycling', enhanceWithAI = false } = req.body;
+    // Get all parameters from the request body
+    const { startLocation, targetDistance, mandatoryWaypoint, travelMode = 'BICYCLING', enhanceWithAI = false } = req.body;
+
+    // --- THE FIX: Normalize travelMode to lowercase immediately ---
+    const normalizedTravelMode = travelMode.toLowerCase();
 
     if (!startLocation || !targetDistance) {
         return res.status(400).json({ error: 'Missing startLocation or targetDistance' });
@@ -105,9 +109,11 @@ app.post('/api/generate-loop', async (req, res) => {
     try {
         let draftResult;
         if (mandatoryWaypoint) {
-            draftResult = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint, travelMode);
+            console.log(`Generating loop with mandatory waypoint: "${mandatoryWaypoint}" for mode: ${normalizedTravelMode}`);
+            draftResult = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint, normalizedTravelMode);
         } else {
-            draftResult = await generateRandomLoop(startLocation, targetDistance, travelMode);
+            console.log(`Generating a random loop for mode: ${normalizedTravelMode}`);
+            draftResult = await generateRandomLoop(startLocation, targetDistance, normalizedTravelMode);
         }
 
         if (!draftResult || !draftResult.route) {
@@ -117,7 +123,7 @@ app.post('/api/generate-loop', async (req, res) => {
         let finalWaypoints = draftResult.waypointsUsed;
 
         if (enhanceWithAI) {
-            finalWaypoints = await getAiImprovedWaypoints(startLocation, draftResult.waypointsUsed, targetDistance, travelMode);
+            finalWaypoints = await getAiImprovedWaypoints(startLocation, draftResult.waypointsUsed, targetDistance, normalizedTravelMode);
         }
         
         const finalWaypointsString = finalWaypoints.map(wp => `${wp.lat},${wp.lng}`).join('|');
@@ -126,14 +132,14 @@ app.post('/api/generate-loop', async (req, res) => {
                 origin: `${startLocation.lat},${startLocation.lng}`,
                 destination: `${startLocation.lat},${startLocation.lng}`,
                 waypoints: finalWaypointsString,
-                mode: travelMode,
+                mode: normalizedTravelMode, // Use the normalized value
                 key: GOOGLE_MAPS_API_KEY
             }
         });
         const finalRoute = finalDirectionsResponse.data.routes[0];
         if (!finalRoute) { throw new Error("Could not route the final waypoints."); }
 
-        const dirflg = travelMode.toLowerCase() === 'walking' ? 'w' : 'b';
+        const dirflg = normalizedTravelMode === 'walking' ? 'w' : 'b';
         const googleMapsUrl = `https://www.google.com/maps/dir/${startLocation.lat},${startLocation.lng}/${finalWaypoints.map(wp=>`${wp.lat},${wp.lng}`).join('/')}/${startLocation.lat},${startLocation.lng}?dirflg=${dirflg}`;
 
         res.json({
