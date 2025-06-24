@@ -1,5 +1,3 @@
-// Add an event listener that waits for the entire HTML document to be loaded and ready.
-// ALL of our code will now live inside this block.
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Global variables, scoped to our DOM-ready function ---
@@ -9,25 +7,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let mapLegend;
     let startMarker = null;
 
+    // NEW: Store the validated place data from the new Autocomplete
+    let startLocationData = null;       // Will hold { placeId: '...', displayName: '...' }
+    let mandatoryWaypointData = null;  // Will hold { placeId: '...', displayName: '...' }
+
     // --- We make initializeApp a global function by attaching it to the 'window' object ---
-    // This ensures that the Google Maps callback can always find it.
     window.initializeApp = async () => {
-        // Import all necessary Google Maps libraries
+        // Import Google Maps libraries
         const { Map } = await google.maps.importLibrary("maps");
         const { Geocoder } = await google.maps.importLibrary("geocoding");
         const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
         google.maps.importLibrary("geometry");
 
-        // Read the last starting point from history, if it exists, to center the map
         let initialPosition = { lat: 48.8566, lng: 2.3522 }; // Default to Paris
         try {
             const history = JSON.parse(localStorage.getItem('loopHistory') || '[]');
             if (history.length > 0 && history[0].startLocation) {
                 initialPosition = history[0].startLocation;
             }
-        } catch (e) {
-            console.error("Could not parse history for initial position:", e);
-        }
+        } catch (e) { console.error("Could not parse history for initial position:", e); }
         
         map = new Map(document.getElementById("map"), {
             zoom: 12,
@@ -39,39 +37,90 @@ document.addEventListener('DOMContentLoaded', () => {
             mapId: 'BIKE_LOOP_GENERATOR_MAP'
         });
 
-        // Initialize the geocoder service
         geocoder = new Geocoder();
         
-        // --- Safely attach all event listeners now that the DOM is ready ---
+        // Safely attach event listeners now that the DOM is ready
         mapLegend = document.getElementById('map-legend');
         document.getElementById('generateBtn').addEventListener('click', generateLoop);
-
-        const toggleButton = document.getElementById('logo-toggle-button'); // UPDATED ID
-        const controlsPanel = document.getElementById('controls');
-        toggleButton.addEventListener('click', () => {
-            controlsPanel.classList.toggle('open');
+        document.getElementById("logo-toggle-button").addEventListener("click", () => {
+            document.getElementById("controls").classList.toggle("open");
         });
 
-        // Fullscreen mode logic
-        const fullscreenBtn = document.getElementById("fullscreen-map-btn");
-        const exitFullscreenBtn = document.getElementById("exit-fullscreen-map-btn");
+        // --- NEW: Setup the new Autocomplete (New) logic for both inputs ---
+        setupAutocomplete('address', 'start-suggestions', (place) => {
+            startLocationData = place; // Store selected place
+        });
+        setupAutocomplete('mandatory_waypoint', 'waypoint-suggestions', (place) => {
+            mandatoryWaypointData = place; // Store selected place
+        });
 
-        if (fullscreenBtn && exitFullscreenBtn) {
-            fullscreenBtn.addEventListener("click", () => {
-                document.getElementById("controls").style.display = "none";
-                fullscreenBtn.style.display = "none";
-                exitFullscreenBtn.style.display = "block";
-            });
-            exitFullscreenBtn.addEventListener("click", () => {
-                document.getElementById("controls").style.display = "block";
-                fullscreenBtn.style.display = "block";
-                exitFullscreenBtn.style.display = "none";
-            });
-        }
-
-        // Load the history list into the UI on startup
         loadHistory();
     };
+
+    // --- NEW Autocomplete (New) Helper Function ---
+    function setupAutocomplete(inputId, suggestionsId, onPlaceSelected) {
+        const input = document.getElementById(inputId);
+        const suggestionsContainer = document.getElementById(suggestionsId);
+        let debounceTimer;
+
+        input.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            const query = e.target.value;
+
+            if (query.length < 3) {
+                suggestionsContainer.innerHTML = '';
+                suggestionsContainer.style.display = 'none';
+                onPlaceSelected(null); // Clear stored data if input is cleared
+                return;
+            }
+
+            // Debounce the API call to avoid spamming on every keystroke
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch('https://bike-loop-backend.onrender.com/api/autocomplete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ input: query })
+                    });
+                    if (!response.ok) throw new Error('Autocomplete fetch failed');
+                    
+                    const data = await response.json();
+
+                    suggestionsContainer.innerHTML = '';
+                    if (data && data.suggestions) {
+                        suggestionsContainer.style.display = 'block';
+                        data.suggestions.forEach(({ placePrediction }) => {
+                            const item = document.createElement('div');
+                            item.className = 'suggestion-item';
+                            item.textContent = placePrediction.text.text;
+                            item.addEventListener('click', () => {
+                                input.value = placePrediction.text.text;
+                                suggestionsContainer.innerHTML = '';
+                                suggestionsContainer.style.display = 'none';
+                                onPlaceSelected({
+                                    placeId: placePrediction.placeId,
+                                    displayName: placePrediction.text.text
+                                });
+                            });
+                            suggestionsContainer.appendChild(item);
+                        });
+                    } else {
+                        suggestionsContainer.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error("Autocomplete error:", error);
+                    suggestionsContainer.style.display = 'none';
+                }
+            }, 300); // Wait 300ms after user stops typing
+        });
+
+        // Hide suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!input.contains(e.target)) {
+                suggestionsContainer.style.display = 'none';
+            }
+        });
+    }
 
 
     // --- All other functions live inside the DOMContentLoaded listener ---
@@ -86,16 +135,46 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('status').textContent = 'Enter a starting point and distance, then click Generate.';
     }
 
-    function generateLoop() {
+ // --- UPDATED generateLoop function ---
+    async function generateLoop() {
         clearUI();
         const generateBtn = document.getElementById('generateBtn');
-        const address = document.getElementById('address').value;
+        const addressInput = document.getElementById('address');
         generateBtn.disabled = true;
 
-        if (address.trim() !== "") {
-            document.getElementById('status').textContent = `Finding "${address}"...`;
-            geocodeAddress(address);
+        let startLocation;
+
+        if (startLocationData && startLocationData.placeId) {
+            // A place was selected, get its details from our backend
+            document.getElementById('status').textContent = 'Getting location details...';
+            try {
+                const response = await fetch('https://bike-loop-backend.onrender.com/api/placedetails', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ placeId: startLocationData.placeId })
+                });
+                if (!response.ok) throw new Error('Place details fetch failed');
+                
+                const placeDetails = await response.json();
+                
+                if (placeDetails.location) {
+                    startLocation = { lat: placeDetails.location.latitude, lng: placeDetails.location.longitude };
+                    map.setCenter(startLocation);
+                    document.getElementById('status').textContent = 'Generating your loop...';
+                    callBackendForLoop(startLocation);
+                } else {
+                    throw new Error('Invalid location data received.');
+                }
+            } catch(error) {
+                document.getElementById('status').textContent = `Error: ${error.message}`;
+                generateBtn.disabled = false;
+            }
+        } else if (addressInput.value.trim() !== '') {
+            // Fallback to legacy geocoding if text is present but no place was selected
+            document.getElementById('status').textContent = `Finding "${addressInput.value}"...`;
+            geocodeAddress(addressInput.value);
         } else {
+            // Fallback to geolocation if input is empty
             document.getElementById('status').textContent = 'Getting your current location...';
             useCurrentLocation();
         }
@@ -137,26 +216,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function callBackendForLoop(startLocation) {
         const targetDistance = document.getElementById('distance').value;
-        const mandatoryWaypoint = document.getElementById('mandatory_waypoint').value;
-        const travelMode = document.querySelector('input[name="travel-mode"]:checked').value;
         const enhanceWithAI = document.getElementById('ai-toggle').checked;
+        const travelMode = document.querySelector('input[name="travel-mode"]:checked').value;
+        
+        // UPDATED: Use the validated place's ID for the mandatory waypoint
+        const mandatoryWaypointPlaceId = mandatoryWaypointData ? mandatoryWaypointData.placeId : null;
         
         const generateBtn = document.getElementById('generateBtn');
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         try {
-        const response = await fetch('https://bike-loop-backend.onrender.com/api/generate-loop', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                startLocation,
-                targetDistance: parseFloat(targetDistance),
-                mandatoryWaypoint: mandatoryWaypoint.trim() || null,
-                travelMode,
-                enhanceWithAI: enhanceWithAI // UPDATED: Send the flag
-            }),
-            signal: controller.signal
+            const response = await fetch('https://bike-loop-backend.onrender.com/api/generate-loop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    startLocation,
+                    targetDistance: parseFloat(targetDistance),
+                    mandatoryWaypointPlaceId: mandatoryWaypointPlaceId,
+                    travelMode,
+                    enhanceWithAI,
+                }),
+                signal: controller.signal
         });
 
             clearTimeout(timeoutId);
