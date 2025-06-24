@@ -147,6 +147,70 @@ app.post('/api/generate-loop', async (req, res) => {
     }
 });
 
+app.post('/api/autocomplete', async (req, res) => {
+    const { input } = req.body;
+
+    if (!input) {
+        return res.status(400).json({ error: 'Input text is required.' });
+    }
+
+    // This is the endpoint for the new Autocomplete API
+    const autocompleteUrl = 'https://places.googleapis.com/v1/places:autocomplete';
+
+    try {
+        const response = await axios.post(
+            autocompleteUrl,
+            {
+                input: input,
+                // You can add more options like location bias, language, etc. here
+                // See docs: https://developers.google.com/maps/documentation/places/web-service/autocomplete-new
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                    'X-Goog-FieldMask': 'places.displayName,places.id' // Only get the fields we need
+                }
+            }
+        );
+        
+        res.json(response.data);
+
+    } catch (error) {
+        console.error("Autocomplete API error:", error.response ? error.response.data : error.message);
+        res.status(500).json({ error: 'Failed to fetch autocomplete suggestions.' });
+    }
+});
+
+// --- NEW: Place Details API Endpoint ---
+// We need this to get the coordinates from a place ID
+app.post('/api/placedetails', async (req, res) => {
+    const { placeId } = req.body;
+
+    if (!placeId) {
+        return res.status(400).json({ error: 'Place ID is required.' });
+    }
+
+    const detailsUrl = `https://places.googleapis.com/v1/places/${placeId}`;
+
+    try {
+        const response = await axios.get(detailsUrl, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
+                'X-Goog-FieldMask': 'id,location,formattedAddress' // Get coordinates and formatted address
+            }
+        });
+
+        res.json(response.data);
+
+    } catch (error) {
+        console.error("Place Details API error:", error.response ? error.response.data : error.message);
+        res.status(500).json({ error: 'Failed to fetch place details.' });
+    }
+});
+
+
 // --- Function to handle loops with a mandatory stop ---
 async function generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypointAddress, normalizedTravelMode) {
     const geoResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/geocode/json`, { params: { address: mandatoryWaypointAddress, key: GOOGLE_MAPS_API_KEY } });
