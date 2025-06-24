@@ -55,6 +55,18 @@
     <span><i style="color:red" class="fa-solid fa-bicycle"></i> Bike</span> |
     <span><i style="color:blue" class="fa-solid fa-person-walking"></i> Walk</span>
   </div>
+        <script>
+      // This is the registration script. It should be inside the body.
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(registration => {
+            console.log('SW registered: ', registration);
+          }).catch(registrationError => {
+            console.log('SW registration failed: ', registrationError);
+          });
+        });
+      }
+    </script>
 
     <script>function initializeApp() {}</script>
     <script src="script.js" defer></script>
