@@ -149,35 +149,39 @@ app.post('/api/generate-loop', async (req, res) => {
 
 app.post('/api/autocomplete', async (req, res) => {
     const { input } = req.body;
+    if (!input) { return res.status(400).json({ error: 'Input text is required.' }); }
 
-    if (!input) {
-        return res.status(400).json({ error: 'Input text is required.' });
-    }
-
-    // This is the endpoint for the new Autocomplete API
     const autocompleteUrl = 'https://places.googleapis.com/v1/places:autocomplete';
+
+    // --- THE FIX: Add a locationBias to make the request more specific ---
+    const requestBody = {
+        input: input,
+        // Adding a location bias can help resolve 'INVALID_ARGUMENT' errors.
+        // This example biases results towards Europe. You can adjust the coordinates.
+        locationBias: {
+            circle: {
+                center: { latitude: 48.8566, longitude: 2.3522 }, // Paris
+                radius: 1000000.0 // 1000 km radius
+            }
+        }
+    };
 
     try {
         const response = await axios.post(
             autocompleteUrl,
-            {
-                input: input,
-                // You can add more options like location bias, language, etc. here
-                // See docs: https://developers.google.com/maps/documentation/places/web-service/autocomplete-new
-            },
+            requestBody, // Use the new request body
             {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                    'X-Goog-FieldMask': 'places.displayName,places.id' // Only get the fields we need
+                    'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text'
                 }
             }
         );
-        
         res.json(response.data);
-
     } catch (error) {
-        console.error("Autocomplete API error:", error.response ? error.response.data : error.message);
+        // Log the full error from Google for better debugging
+        console.error("Autocomplete API error:", error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
         res.status(500).json({ error: 'Failed to fetch autocomplete suggestions.' });
     }
 });
