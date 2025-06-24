@@ -139,18 +139,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const targetDistance = document.getElementById('distance').value;
         const mandatoryWaypoint = document.getElementById('mandatory_waypoint').value;
         const travelMode = document.querySelector('input[name="travel-mode"]:checked').value;
+        const enhanceWithAI = document.getElementById('ai-toggle').checked;
         
         const generateBtn = document.getElementById('generateBtn');
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         try {
-            const response = await fetch('https://bike-loop-backend.onrender.com/api/generate-loop', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ startLocation, targetDistance: parseFloat(targetDistance), mandatoryWaypoint: mandatoryWaypoint.trim() || null, travelMode }),
-                signal: controller.signal
-            });
+        const response = await fetch('https://bike-loop-backend.onrender.com/api/generate-loop', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                startLocation,
+                targetDistance: parseFloat(targetDistance),
+                mandatoryWaypoint: mandatoryWaypoint.trim() || null,
+                travelMode,
+                enhanceWithAI: enhanceWithAI // UPDATED: Send the flag
+            }),
+            signal: controller.signal
+        });
 
             clearTimeout(timeoutId);
             if (!response.ok) {
