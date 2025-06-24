@@ -1,4 +1,4 @@
-console.log("--- Starting PathCycle Backend v3.0 (AI Enabled) ---");
+console.log("--- Starting PathCycle Backend v3.3 (Resilient Generator) ---");
 
 require('dotenv').config();
 const express = require('express');
@@ -18,7 +18,6 @@ const app = express();
 const allowedOrigins = ['https://delightful-treacle-d03c96.netlify.app']; // Your production frontend URL
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow requests from whitelisted origins and those with no origin (like Postman, mobile apps)
         if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
             callback(null, true);
         } else {
@@ -32,7 +31,7 @@ app.use(express.json());
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const GOOGLE_MAPS_API_BASE = 'https://maps.googleapis.com/maps/api';
 
-// --- Helper functions (calculateDestinationPoint, getBearing) ---
+// --- Helper functions ---
 function calculateDestinationPoint(lat, lng, bearing, distance) {
     const R = 6371; const d = distance;
     const lat1 = (lat * Math.PI) / 180; const lon1 = (lng * Math.PI) / 180;
@@ -70,7 +69,6 @@ async function getAiImprovedWaypoints(startLocation, initialWaypoints, targetDis
         {"waypoints": [{"lat": 45.123, "lng": 1.456}, ...]}
         The response should contain the same number of waypoints as the draft.
     `;
-
     try {
         console.log("Calling OpenAI to improve route...");
         const completion = await openai.chat.completions.create({
@@ -96,10 +94,7 @@ async function getAiImprovedWaypoints(startLocation, initialWaypoints, targetDis
 
 // --- Main API Endpoint ---
 app.post('/api/generate-loop', async (req, res) => {
-    // Get all parameters from the request body
     const { startLocation, targetDistance, mandatoryWaypoint, travelMode = 'BICYCLING', enhanceWithAI = false } = req.body;
-
-    // --- THE FIX: Normalize travelMode to lowercase immediately ---
     const normalizedTravelMode = travelMode.toLowerCase();
 
     if (!startLocation || !targetDistance) {
@@ -109,10 +104,8 @@ app.post('/api/generate-loop', async (req, res) => {
     try {
         let draftResult;
         if (mandatoryWaypoint) {
-            console.log(`Generating loop with mandatory waypoint: "${mandatoryWaypoint}" for mode: ${normalizedTravelMode}`);
             draftResult = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint, normalizedTravelMode);
         } else {
-            console.log(`Generating a random loop for mode: ${normalizedTravelMode}`);
             draftResult = await generateRandomLoop(startLocation, targetDistance, normalizedTravelMode);
         }
 
@@ -121,7 +114,6 @@ app.post('/api/generate-loop', async (req, res) => {
         }
         
         let finalWaypoints = draftResult.waypointsUsed;
-
         if (enhanceWithAI) {
             finalWaypoints = await getAiImprovedWaypoints(startLocation, draftResult.waypointsUsed, targetDistance, normalizedTravelMode);
         }
@@ -132,7 +124,7 @@ app.post('/api/generate-loop', async (req, res) => {
                 origin: `${startLocation.lat},${startLocation.lng}`,
                 destination: `${startLocation.lat},${startLocation.lng}`,
                 waypoints: finalWaypointsString,
-                mode: normalizedTravelMode, // Use the normalized value
+                mode: normalizedTravelMode,
                 key: GOOGLE_MAPS_API_KEY
             }
         });
@@ -155,89 +147,50 @@ app.post('/api/generate-loop', async (req, res) => {
     }
 });
 
-
 // --- Function to handle loops with a mandatory stop ---
 async function generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypointAddress, normalizedTravelMode) {
-    const geoResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/geocode/json`, { params: { address: mandatoryWaypointAddress, key: API_KEY } });
+    const geoResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/geocode/json`, { params: { address: mandatoryWaypointAddress, key: GOOGLE_MAPS_API_KEY } });
     if (!geoResponse.data.results || geoResponse.data.results.length === 0) { throw new Error(`Could not find location for: "${mandatoryWaypointAddress}"`); }
     const mandatoryPoint = geoResponse.data.results[0].geometry.location;
-
-    const directRouteResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, { params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: `${mandatoryPoint.lat},${mandatoryPoint.lng}`, mode: normalizedTravelMode, key: API_KEY } });
+    const directRouteResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, { params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: `${mandatoryPoint.lat},${mandatoryPoint.lng}`, mode: normalizedTravelMode, key: GOOGLE_MAPS_API_KEY } });
     const directRoute = directRouteResponse.data.routes[0];
     const directDistance = directRoute.legs.reduce((sum, leg) => sum + leg.distance.value, 0);
-
     const targetDistanceMeters = targetDistance * 1000;
     const distanceDeficit = targetDistanceMeters - directDistance;
-
-    if (distanceDeficit <= 500) {
-        return { route: directRoute, waypointsUsed: [mandatoryPoint] };
-    }
-    
+    if (distanceDeficit <= 500) { return { route: directRoute, waypointsUsed: [mandatoryPoint] }; }
     const detourLegDistance = (distanceDeficit / 2) / 2;
     const bearingOut = getBearing(startLocation, mandatoryPoint);
     const detourBearingOut = (bearingOut + 90 * (Math.random() > 0.5 ? 1 : -1) + 360) % 360;
     const midpointOut = { lat: (startLocation.lat + mandatoryPoint.lat) / 2, lng: (startLocation.lng + mandatoryPoint.lng) / 2 };
     const theoreticalDetour1 = calculateDestinationPoint(midpointOut.lat, midpointOut.lng, detourBearingOut, detourLegDistance / 1000);
-    
     const bearingIn = getBearing(mandatoryPoint, startLocation);
     const detourBearingIn = (bearingIn + 90 * (Math.random() > 0.5 ? 1 : -1) + 360) % 360;
     const midpointIn = { lat: (mandatoryPoint.lat + startLocation.lat) / 2, lng: (mandatoryPoint.lng + startLocation.lng) / 2 };
     const theoreticalDetour2 = calculateDestinationPoint(midpointIn.lat, midpointIn.lng, detourBearingIn, detourLegDistance / 1000);
-    
     const finalWaypointsForRequest = [`${theoreticalDetour1.lat},${theoreticalDetour1.lng}`, `${mandatoryPoint.lat},${mandatoryPoint.lng}`, `${theoreticalDetour2.lat},${theoreticalDetour2.lng}`];
-    
-    const finalRouteResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, { params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: finalWaypointsForRequest.join('|'), mode: normalizedTravelMode, key: API_KEY } });
-
+    const finalRouteResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, { params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: finalWaypointsForRequest.join('|'), mode: normalizedTravelMode, key: GOOGLE_MAPS_API_KEY } });
     return { route: finalRouteResponse.data.routes[0], waypointsUsed: [theoreticalDetour1, mandatoryPoint, theoreticalDetour2] };
 }
 
-
+// --- UPDATED Function for random loops (More Resilient) ---
 async function generateRandomLoop(startLocation, targetDistance, normalizedTravelMode) {
+    const MAIN_ATTEMPTS = 25; // Increased attempts
+    const REFINE_ITERATIONS = 3;
     const ADJUSTMENT_FACTOR = 0.75;
     const targetDistanceMeters = targetDistance * 1000;
-    
     let bestRoute = null;
     let minError = Infinity;
     let waypointsForBestRoute = [];
-    let legDistance = targetDistance / 4; 
 
-    for (let attempt = 0; attempt < MAIN_ATTEMPTS; attempt++) {
-        console.log(`--- Main Attempt #${attempt + 1}/${MAIN_ATTEMPTS} | Trying legDistance: ${legDistance.toFixed(2)} km ---`);
-        
-        const ---
-    const MAIN_ATTEMPTS = 30;
-    const REFINE_ITERATIONS = 5;
-    const ADJUSTMENT_FACTOR = 0.75;
-    const targetDistanceMeters = targetDistance * 1000;
-    let bestRoute = null;
-    let minError = Infinity;
-    let waypointsForBestRoute = [];
     for (let attempt = 0; attempt < MAIN_ATTEMPTS; attempt++) {
         console.log(`--- Main Attempt #${attempt + 1}/${MAIN_ATTEMPTS} ---`);
+        
         let randomStartAngle;
         if (attempt < MAIN_ATTEMPTS - 4) {
-            randomStartAngle = Math.random() * 360; // randomStartAngle = Math.random() * 360;
-        const bearings = [(randomStartAngle), (randomStartAngle + 90) % 360, (randomStartAngle + 180) % 360];
-        
-        let attemptSucceeded = false;
-
-        for (let i = 0; i < REFINE_ITERATIONS; i++) {
-            const waypoints = [];
-            let currentPoint = startLocation;
-            let canCreateWaypoints = true;
-            for (const bearing of bearings) {
-                const theoreticalPoint = calculateDestinationPoint(currentPoint.lat, currentPoint.lng, bearing, legDistance);
-                try {
-                    const snapResponse = await axios.get(`https://roads.googleapis.com/v1/snapToRoads`, { params: { path: `${theoreticalPoint.lat},${theoreticalPoint.lng}`, interpolate: false, key: GOOGLE_MAPS_API_KEY } });
-                    if (snapResponse.data.snappedPoints && snapResponse.data.snappedPoints.length > 0) {
-                        const snappedPoint = snapResponse.data.snappedPoints[0].location;
-                        waypoints.push({ lat: snappedPoint.latitude, lng: snappedPoint.longitude });
-                        currentPoint = waypoints[waypoints.length - 1];
-                    } else { throw new Error(`No snapped points`); }
-                } catch (snapError) Random direction
+            randomStartAngle = Math.random() * 360; // Random direction
         } else {
             console.log("Random attempts failed, trying fixed direction as fallback...");
-            randomStartAngle = [0, 90, 180, 270][attempt - (MAIN_ATTEMPTS - 4)];
+            randomStartAngle = [0, 90, 180, 270][attempt - (MAIN_ATTEMPTS - 4)]; // N, E, S, W
         }
         
         const bearings = [(randomStartAngle), (randomStartAngle + 90) % 360, (randomStartAngle + 180) % 360];
@@ -251,36 +204,7 @@ async function generateRandomLoop(startLocation, targetDistance, normalizedTrave
                 const theoreticalPoint = calculateDestinationPoint(currentPoint.lat, currentPoint.lng, bearing, legDistance);
                 try {
                     const snapResponse = await axios.get(`https://roads.googleapis.com/v1/snapToRoads`, { params: { path: `${theoreticalPoint.lat},${theoreticalPoint.lng}`, interpolate: false, key: GOOGLE_MAPS_API_KEY } });
-                    if (snapResponse.data.snappedPoints && snapResponse.data. {
-                    canCreateWaypoints = false;
-                    console.log(`  -> Snap failed for bearing ${bearing.toFixed(0)}`);
-                    break;
-                }
-            }
-            if (!canCreateWaypoints) { break; } // This attempt failed, try a new main attempt
-            
-            try {
-                const waypointsString = waypoints.map(wp => `${wp.lat},${wp.lng}`).join('|');
-                const directionsResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, {
-                    params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: waypointsString, mode: normalizedTravelMode, key: GOOGLE_MAPS_API_KEY }
-                });
-                const route = directionsResponse.data.routes[0];
-                if (route) {
-                    attemptSucceeded = true;
-                    const actualDistance = route.legs.reduce((total, leg) => total + leg.distance.value, 0);
-                    const error = Math.abs(actualDistance - targetDistanceMeters);
-                    if (error < minError) {
-                        minError = error;
-                        bestRoute = route;
-                        waypointsForBestRoute = waypoints;
-                    }
-                    const errorRatio = targetDistanceMeters / actualDistance;
-                    legDistance *= (1 - ADJUSTMENT_FACTOR) + (errorRatio * ADJUSTMENT_FACTOR);
-                }
-            } catch (dirError) { break; }
-        }
-        if (!attemptSucceeded) {
-            legDistance *= 0.9; // Shrink the search radius by 10% andsnappedPoints.length > 0) {
+                    if (snapResponse.data.snappedPoints && snapResponse.data.snappedPoints.length > 0) {
                         const snappedPoint = snapResponse.data.snappedPoints[0].location;
                         waypoints.push({ lat: snappedPoint.latitude, lng: snappedPoint.longitude });
                         currentPoint = waypoints[waypoints.length - 1];
