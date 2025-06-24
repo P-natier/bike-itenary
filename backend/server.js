@@ -1,110 +1,145 @@
+console.log("--- Starting PathCycle Backend v3.0 (AI Enabled) ---");
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const path = require('path');
+const OpenAI = require('openai');
+
+// --- OpenAI Configuration ---
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
 
 const app = express();
-const allowedOrigins = ['https://delightful-treacle-d03c96.netlify.app'];
 
+// --- CORS Configuration ---
+const allowedOrigins = ['https://delightful-treacle-d03c96.netlify.app']; // Your production frontend URL
 const corsOptions = {
-  origin: function (origin, callback) {
-    // The 'origin' is the URL of the site making the request (e.g., your Netlify app).
-    // We check if this origin is in our list of allowed sites.
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      // If it's in the list (or if there's no origin, like for server-to-server), allow it.
-      callback(null, true);
-    } else {
-      // If it's not in the list, reject it with a CORS error.
-      callback(new Error('Not allowed by CORS'));
+    origin: function (origin, callback) {
+        // Allow requests from whitelisted origins and those with no origin (like Postman, mobile apps)
+        if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+            callback(null, true);
+        } else {
+            callback(new Error('This origin is not allowed by CORS'));
+        }
     }
-  }
 };
-
 app.use(cors(corsOptions));
 app.use(express.json());
 
-const API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 const GOOGLE_MAPS_API_BASE = 'https://maps.googleapis.com/maps/api';
 
-// At the top of the file
-const OpenAI = require('openai');
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY, // Add this to your .env file and Render
-});
-
-// A new function to get AI-improved waypoints
-
-// --- Helper functions ---
+// --- Helper functions (calculateDestinationPoint, getBearing) ---
 function calculateDestinationPoint(lat, lng, bearing, distance) {
-    const R = 6371;
-    const d = distance;
-    const lat1 = (lat * Math.PI) / 180;
-    const lon1 = (lng * Math.PI) / 180;
+    const R = 6371; const d = distance;
+    const lat1 = (lat * Math.PI) / 180; const lon1 = (lng * Math.PI) / 180;
     const brng = (bearing * Math.PI) / 180;
     let lat2 = Math.asin(Math.sin(lat1) * Math.cos(d / R) + Math.cos(lat1) * Math.sin(d / R) * Math.cos(brng));
     let lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d / R) * Math.cos(lat1), Math.cos(d / R) - Math.sin(lat1) * Math.sin(lat2));
-    lat2 = (lat2 * 180) / Math.PI;
-    lon2 = (lon2 * 180) / Math.PI;
+    lat2 = (lat2 * 180) / Math.PI; lon2 = (lon2 * 180) / Math.PI;
     return { lat: lat2, lng: lon2 };
 }
-
 function getBearing(startPoint, endPoint) {
-    const lat1 = (startPoint.lat * Math.PI) / 180;
-    const lon1 = (startPoint.lng * Math.PI) / 180;
-    const lat2 = (endPoint.lat * Math.PI) / 180;
-    const lon2 = (endPoint.lng * Math.PI) / 180;
+    const lat1 = (startPoint.lat * Math.PI) / 180; const lon1 = (startPoint.lng * Math.PI) / 180;
+    const lat2 = (endPoint.lat * Math.PI) / 180; const lon2 = (endPoint.lng * Math.PI) / 180;
     const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
     const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
     const brng = Math.atan2(y, x);
     return ((brng * 180) / Math.PI + 360) % 360;
 }
 
-function normalizeTransportMode(mode) {
-    // Convert frontend mode values to Google Maps API expected values
-    const modeMap = {
-        'BICYCLING': 'bicycling',
-        'WALKING': 'walking',
-        'bicycling': 'bicycling',
-        'walking': 'walking'
-    };
-    return modeMap[mode] || 'bicycling'; // default to bicycling if unknown
+// --- AI Waypoint Improver Function ---
+async function getAiImprovedWaypoints(startLocation, initialWaypoints, targetDistance, travelMode) {
+    const waypointsText = JSON.stringify(initialWaypoints);
+    const prompt = `
+        You are an expert local route planner for cyclists and walkers.
+        Your task is to improve a pre-calculated route by modifying its waypoints.
+        The user wants a loop itinerary starting and ending at ${JSON.stringify(startLocation)}.
+        The target distance is ${targetDistance} km for a ${travelMode} trip.
+        Here is a draft set of waypoints calculated by a geometric algorithm: ${waypointsText}.
+
+        Please refine these waypoints to create a more enjoyable route.
+        Prioritize bike lanes for cycling, and pedestrian paths or parks for walking.
+        Avoid busy roads, dead ends, and simple out-and-back segments if possible.
+        Try to make the route more scenic or interesting.
+
+        You MUST respond ONLY with a valid JSON object in the following format:
+        {"waypoints": [{"lat": 45.123, "lng": 1.456}, ...]}
+        The response should contain the same number of waypoints as the draft.
+    `;
+
+    try {
+        console.log("Calling OpenAI to improve route...");
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [{ "role": "user", "content": prompt }],
+            response_format: { "type": "json_object" },
+        });
+        const aiResponse = completion.choices[0].message.content;
+        const parsedJson = JSON.parse(aiResponse);
+
+        if (parsedJson && Array.isArray(parsedJson.waypoints) && parsedJson.waypoints.length > 0) {
+            console.log("Successfully got improved waypoints from AI.");
+            return parsedJson.waypoints;
+        } else {
+            throw new Error("AI response was not in the expected format.");
+        }
+    } catch (error) {
+        console.error("OpenAI call failed:", error.message);
+        console.log("Falling back to original geometric waypoints.");
+        return initialWaypoints;
+    }
 }
 
 // --- Main API Endpoint ---
 app.post('/api/generate-loop', async (req, res) => {
-    const { startLocation, targetDistance, mandatoryWaypoint, travelMode = 'bicycling' } = req.body;
+    const { startLocation, targetDistance, mandatoryWaypoint, travelMode = 'bicycling', enhanceWithAI = false } = req.body;
 
     if (!startLocation || !targetDistance) {
         return res.status(400).json({ error: 'Missing startLocation or targetDistance' });
     }
 
     try {
-        let result;
+        let draftResult;
         if (mandatoryWaypoint) {
-            console.log(`Generating loop with mandatory waypoint: "${mandatoryWaypoint}" for mode: ${travelMode}`);
-            result = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint, travelMode);
+            draftResult = await generateLoopWithWaypoint(startLocation, targetDistance, mandatoryWaypoint, travelMode);
         } else {
-            console.log(`Generating a random loop for mode: ${travelMode}`);
-            result = await generateRandomLoop(startLocation, targetDistance, travelMode);
+            draftResult = await generateRandomLoop(startLocation, targetDistance, travelMode);
         }
 
-        if (!result || !result.route) {
-            throw new Error("Could not generate a valid route.");
+        if (!draftResult || !draftResult.route) {
+            throw new Error("Could not generate a valid initial route.");
         }
         
-        let googleMapsUrl = 'https://www.google.com/maps/dir/';
-        const origin = `${startLocation.lat},${startLocation.lng}`;
-        const destination = origin;
-        const waypointsString = result.waypointsUsed.map(wp => `${wp.lat},${wp.lng}`).join('/');
+        let finalWaypoints = draftResult.waypointsUsed;
+
+        if (enhanceWithAI) {
+            finalWaypoints = await getAiImprovedWaypoints(startLocation, draftResult.waypointsUsed, targetDistance, travelMode);
+        }
         
+        const finalWaypointsString = finalWaypoints.map(wp => `${wp.lat},${wp.lng}`).join('|');
+        const finalDirectionsResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, {
+            params: {
+                origin: `${startLocation.lat},${startLocation.lng}`,
+                destination: `${startLocation.lat},${startLocation.lng}`,
+                waypoints: finalWaypointsString,
+                mode: travelMode,
+                key: GOOGLE_MAPS_API_KEY
+            }
+        });
+        const finalRoute = finalDirectionsResponse.data.routes[0];
+        if (!finalRoute) { throw new Error("Could not route the final waypoints."); }
+
         const dirflg = travelMode.toLowerCase() === 'walking' ? 'w' : 'b';
-        googleMapsUrl += `${origin}/${waypointsString}/${destination}?dirflg=${dirflg}`;
+        const googleMapsUrl = `https://www.google.com/maps/dir/${startLocation.lat},${startLocation.lng}/${finalWaypoints.map(wp=>`${wp.lat},${wp.lng}`).join('/')}/${startLocation.lat},${startLocation.lng}?dirflg=${dirflg}`;
 
         res.json({
-            polyline: result.route.overview_polyline.points,
-            totalDistance: result.route.legs.reduce((total, leg) => total + leg.distance.value, 0),
-            totalDuration: result.route.legs.reduce((total, leg) => total + leg.duration.value, 0),
+            polyline: finalRoute.overview_polyline.points,
+            totalDistance: finalRoute.legs.reduce((total, leg) => total + leg.distance.value, 0),
+            totalDuration: finalRoute.legs.reduce((total, leg) => total + leg.duration.value, 0),
             googleMapsUrl: googleMapsUrl
         });
 
