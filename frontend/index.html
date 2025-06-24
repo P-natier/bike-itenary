@@ -15,10 +15,19 @@
         <div class="sidebar-header">
             <h2>PathCycle</h2>
         </div>
-        <label for="address">Starting Address:</label>
-        <input type="text" id="address" placeholder="Type an address or leave blank">
-    <label for="mandatory_waypoint">Include this point (optional):</label>
-    <input type="text" id="mandatory_waypoint" placeholder="e.g., 'Eiffel Tower, Paris'">
+<label for="address">Starting Address:</label>
+<div class="autocomplete-container">
+    <input type="text" id="address" placeholder="Type an address..." autocomplete="off">
+    <!-- This div will hold our custom suggestions -->
+    <div class="suggestions-list" id="start-suggestions"></div>
+</div>
+
+<label for="mandatory_waypoint">Include this point (optional):</label>
+<div class="autocomplete-container">
+    <input type="text" id="mandatory_waypoint" placeholder="e.g., 'Eiffel Tower, Paris'" autocomplete="off">
+    <!-- This div will hold our custom suggestions -->
+    <div class="suggestions-list" id="waypoint-suggestions"></div>
+</div>
     <label for="distance">Loop Distance (km):</label>
     <input type="number" id="distance" value="20" min="1">
     <div id="mode-selector">
