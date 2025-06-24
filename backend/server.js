@@ -191,18 +191,55 @@ async function generateLoopWithWaypoint(startLocation, targetDistance, mandatory
     return { route: finalRouteResponse.data.routes[0], waypointsUsed: [theoreticalDetour1, mandatoryPoint, theoreticalDetour2] };
 }
 
-// --- Function for random loops ---
+
 async function generateRandomLoop(startLocation, targetDistance, normalizedTravelMode) {
-    const MAIN_ATTEMPTS = 10;
-    const REFINE_ITERATIONS = 3;
+    const ADJUSTMENT_FACTOR = 0.75;
+    const targetDistanceMeters = targetDistance * 1000;
+    
+    let bestRoute = null;
+    let minError = Infinity;
+    let waypointsForBestRoute = [];
+    let legDistance = targetDistance / 4; 
+
+    for (let attempt = 0; attempt < MAIN_ATTEMPTS; attempt++) {
+        console.log(`--- Main Attempt #${attempt + 1}/${MAIN_ATTEMPTS} | Trying legDistance: ${legDistance.toFixed(2)} km ---`);
+        
+        const ---
+    const MAIN_ATTEMPTS = 30;
+    const REFINE_ITERATIONS = 5;
     const ADJUSTMENT_FACTOR = 0.75;
     const targetDistanceMeters = targetDistance * 1000;
     let bestRoute = null;
     let minError = Infinity;
     let waypointsForBestRoute = [];
-
     for (let attempt = 0; attempt < MAIN_ATTEMPTS; attempt++) {
-        const randomStartAngle = Math.random() * 360;
+        console.log(`--- Main Attempt #${attempt + 1}/${MAIN_ATTEMPTS} ---`);
+        let randomStartAngle;
+        if (attempt < MAIN_ATTEMPTS - 4) {
+            randomStartAngle = Math.random() * 360; // randomStartAngle = Math.random() * 360;
+        const bearings = [(randomStartAngle), (randomStartAngle + 90) % 360, (randomStartAngle + 180) % 360];
+        
+        let attemptSucceeded = false;
+
+        for (let i = 0; i < REFINE_ITERATIONS; i++) {
+            const waypoints = [];
+            let currentPoint = startLocation;
+            let canCreateWaypoints = true;
+            for (const bearing of bearings) {
+                const theoreticalPoint = calculateDestinationPoint(currentPoint.lat, currentPoint.lng, bearing, legDistance);
+                try {
+                    const snapResponse = await axios.get(`https://roads.googleapis.com/v1/snapToRoads`, { params: { path: `${theoreticalPoint.lat},${theoreticalPoint.lng}`, interpolate: false, key: GOOGLE_MAPS_API_KEY } });
+                    if (snapResponse.data.snappedPoints && snapResponse.data.snappedPoints.length > 0) {
+                        const snappedPoint = snapResponse.data.snappedPoints[0].location;
+                        waypoints.push({ lat: snappedPoint.latitude, lng: snappedPoint.longitude });
+                        currentPoint = waypoints[waypoints.length - 1];
+                    } else { throw new Error(`No snapped points`); }
+                } catch (snapError) Random direction
+        } else {
+            console.log("Random attempts failed, trying fixed direction as fallback...");
+            randomStartAngle = [0, 90, 180, 270][attempt - (MAIN_ATTEMPTS - 4)];
+        }
+        
         const bearings = [(randomStartAngle), (randomStartAngle + 90) % 360, (randomStartAngle + 180) % 360];
         let legDistance = targetDistance / 4;
 
@@ -213,8 +250,37 @@ async function generateRandomLoop(startLocation, targetDistance, normalizedTrave
             for (const bearing of bearings) {
                 const theoreticalPoint = calculateDestinationPoint(currentPoint.lat, currentPoint.lng, bearing, legDistance);
                 try {
-                    const snapResponse = await axios.get(`https://roads.googleapis.com/v1/snapToRoads`, { params: { path: `${theoreticalPoint.lat},${theoreticalPoint.lng}`, interpolate: false, key: API_KEY } });
-                    if (snapResponse.data.snappedPoints && snapResponse.data.snappedPoints.length > 0) {
+                    const snapResponse = await axios.get(`https://roads.googleapis.com/v1/snapToRoads`, { params: { path: `${theoreticalPoint.lat},${theoreticalPoint.lng}`, interpolate: false, key: GOOGLE_MAPS_API_KEY } });
+                    if (snapResponse.data.snappedPoints && snapResponse.data. {
+                    canCreateWaypoints = false;
+                    console.log(`  -> Snap failed for bearing ${bearing.toFixed(0)}`);
+                    break;
+                }
+            }
+            if (!canCreateWaypoints) { break; } // This attempt failed, try a new main attempt
+            
+            try {
+                const waypointsString = waypoints.map(wp => `${wp.lat},${wp.lng}`).join('|');
+                const directionsResponse = await axios.get(`${GOOGLE_MAPS_API_BASE}/directions/json`, {
+                    params: { origin: `${startLocation.lat},${startLocation.lng}`, destination: `${startLocation.lat},${startLocation.lng}`, waypoints: waypointsString, mode: normalizedTravelMode, key: GOOGLE_MAPS_API_KEY }
+                });
+                const route = directionsResponse.data.routes[0];
+                if (route) {
+                    attemptSucceeded = true;
+                    const actualDistance = route.legs.reduce((total, leg) => total + leg.distance.value, 0);
+                    const error = Math.abs(actualDistance - targetDistanceMeters);
+                    if (error < minError) {
+                        minError = error;
+                        bestRoute = route;
+                        waypointsForBestRoute = waypoints;
+                    }
+                    const errorRatio = targetDistanceMeters / actualDistance;
+                    legDistance *= (1 - ADJUSTMENT_FACTOR) + (errorRatio * ADJUSTMENT_FACTOR);
+                }
+            } catch (dirError) { break; }
+        }
+        if (!attemptSucceeded) {
+            legDistance *= 0.9; // Shrink the search radius by 10% andsnappedPoints.length > 0) {
                         const snappedPoint = snapResponse.data.snappedPoints[0].location;
                         waypoints.push({ lat: snappedPoint.latitude, lng: snappedPoint.longitude });
                         currentPoint = waypoints[waypoints.length - 1];
@@ -229,8 +295,8 @@ async function generateRandomLoop(startLocation, targetDistance, normalizedTrave
                         origin: `${startLocation.lat},${startLocation.lng}`,
                         destination: `${startLocation.lat},${startLocation.lng}`,
                         waypoints: waypointsString,
-                        mode: normalizedTravelMode, // Using normalized travel mode
-                        key: API_KEY
+                        mode: normalizedTravelMode,
+                        key: GOOGLE_MAPS_API_KEY
                     }
                 });
                 const route = directionsResponse.data.routes[0];
@@ -247,7 +313,10 @@ async function generateRandomLoop(startLocation, targetDistance, normalizedTrave
                 }
             } catch (dirError) { break; }
         }
-        if (minError < 500 && bestRoute) { break; }
+        if (minError < 500 && bestRoute) {
+            console.log("Found a suitable route, breaking early.");
+            break;
+        }
     }
     return { 
         route: bestRoute,
