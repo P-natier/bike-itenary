@@ -161,7 +161,7 @@ app.post('/api/autocomplete', async (req, res) => {
         locationBias: {
             circle: {
                 center: { latitude: 48.8566, longitude: 2.3522 }, // Paris
-                radius: 1000000.0 // 1000 km radius
+                radius: 50000.0
             }
         }
     };
