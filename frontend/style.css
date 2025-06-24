@@ -303,3 +303,31 @@ input:checked + .slider:before {
 .slider.round:before {
     border-radius: 50%;
 }
+
+.autocomplete-container {
+    position: relative; /* This is crucial for positioning the suggestions list */
+}
+
+
+.suggestions-list {
+    position: absolute;
+    top: 100%; /* Position it right below the input field */
+    left: 0;
+    right: 0;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-top: none;
+    z-index: 99; /* Make sure it appears above other elements */
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.suggestion-item {
+    padding: 10px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.suggestion-item:hover {
+    background-color: #f0f0f0;
+}
