@@ -190,27 +190,24 @@ app.post('/api/autocomplete', async (req, res) => {
 // We need this to get the coordinates from a place ID
 app.post('/api/placedetails', async (req, res) => {
     const { placeId } = req.body;
-
-    if (!placeId) {
-        return res.status(400).json({ error: 'Place ID is required.' });
-    }
+    if (!placeId) { return res.status(400).json({ error: 'Place ID is required.' }); }
 
     const detailsUrl = `https://places.googleapis.com/v1/places/${placeId}`;
 
     try {
+        // THE FIX: For a GET request, the API key and fields must be URL parameters.
+        // We use the 'params' object in axios to build the query string correctly.
         const response = await axios.get(detailsUrl, {
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                // We need to tell it to look inside suggestions -> placePrediction
-'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text'
+            params: {
+                key: GOOGLE_MAPS_API_KEY,
+                fields: 'location,formattedAddress' // 'fields' is the correct parameter name
             }
         });
-
+        
         res.json(response.data);
 
     } catch (error) {
-        console.error("Place Details API error:", error.response ? error.response.data : error.message);
+        console.error("Place Details API error:", error.response ? JSON.stringify(error.response.data, null, 2) : error.message);
         res.status(500).json({ error: 'Failed to fetch place details.' });
     }
 });
