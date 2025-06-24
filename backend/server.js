@@ -198,7 +198,8 @@ app.post('/api/placedetails', async (req, res) => {
             headers: {
                 'Content-Type': 'application/json',
                 'X-Goog-Api-Key': GOOGLE_MAPS_API_KEY,
-                'X-Goog-FieldMask': 'id,location,formattedAddress' // Get coordinates and formatted address
+                // We need to tell it to look inside suggestions -> placePrediction
+'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.text'
             }
         });
 
